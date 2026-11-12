@@ -52,12 +52,12 @@ _Avoid_: Token registrasi, invite code publik
 
 # Tooling & Runtime Environment
 
-Konvensi lingkungan pengujian lokal dan otomasi build emulator Android.
+Konvensi lingkungan pengembangan dan pengujian lokal aplikasi Expo.
 
 ## Language
 
 **Fast Refresh**:
-Mekanisme pembaruan kode instan berbasis WebSocket yang merefleksikan perubahan JavaScript/TypeScript di emulator tanpa kompilasi ulang native.
+Mekanisme pembaruan kode instan berbasis WebSocket yang merefleksikan perubahan JavaScript/TypeScript secara realtime tanpa restart server.
 
 **Expo Dev Client**:
 Binary aplikasi Android debug kustom (`app-debug.apk`) yang memuat seluruh modul native, runtime C++, dan engine Hermes sebagai container pengembangan.

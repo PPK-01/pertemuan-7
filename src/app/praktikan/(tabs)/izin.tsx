@@ -36,8 +36,8 @@ export default function IzinListScreen() {
               return (
                 <IzinRow
                   izin={item}
-                  praktikum={session?.praktikum}
-                  topik={session?.topik}
+                  praktikanName={item.userName}
+                  sessionLabel={session ? `${session.praktikum} · ${session.topik}` : 'Praktikum'}
                   onPress={() =>
                     router.push({
                       pathname: '/praktikan/izin/[id]',

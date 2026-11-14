@@ -18,29 +18,10 @@ export type IzinRowProps = {
   onPress?: () => void;
 };
 
-/** @deprecated Bentuk props lama; dihapus setelah pemanggil dimigrasi. */
-type LegacyIzinRowProps = {
-  izin: Izin;
-  praktikum?: string;
-  topik?: string;
-  onPress?: () => void;
-};
-
 // Nama dan badge bertumpuk bila width / fontScale di bawah nilai ini (pola sama dengan BottomSheet).
 const STACK_HEADER_BELOW = 360;
 
-function normalizeProps(props: IzinRowProps | LegacyIzinRowProps): IzinRowProps {
-  if ('praktikanName' in props) return props;
-  return {
-    izin: props.izin,
-    praktikanName: props.izin.userName,
-    sessionLabel: [props.praktikum ?? 'Praktikum', props.topik].filter(Boolean).join(' · '),
-    onPress: props.onPress,
-  };
-}
-
-export function IzinRow(props: IzinRowProps | LegacyIzinRowProps) {
-  const { izin, praktikanName, sessionLabel, onPress } = normalizeProps(props);
+export function IzinRow({ izin, praktikanName, sessionLabel, onPress }: IzinRowProps) {
   const { width, fontScale } = useWindowDimensions();
   const stacked = width / fontScale < STACK_HEADER_BELOW;
   const a11yLabel = `${praktikanName}, ${sessionLabel}, ${getIzinStatusLabel(izin.status)}`;

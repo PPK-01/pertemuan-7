@@ -24,7 +24,7 @@ export default function IndexGate() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <LoadingState message="Mempersiapkan Rawuh..." />
+      <LoadingState fullScreen label="Mempersiapkan Rawuh..." />
     </View>
   );
 }

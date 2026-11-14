@@ -9,27 +9,19 @@ export type LoadingStateProps = {
   label?: string;
   /** Mengisi layar dan terpusat, untuk gate auth atau listener awal. */
   fullScreen?: boolean;
-  /** @deprecated Pakai `label`; dihapus setelah pemanggil dimigrasi. */
-  message?: string;
 };
 
-const DEFAULT_LABEL = 'Memuat…';
-
-export function LoadingState({ label, fullScreen = false, message }: LoadingStateProps) {
-  const text = label ?? message ?? DEFAULT_LABEL;
-  // Pemanggil lama (prop message) mengandalkan flex: 1; dipertahankan sampai dimigrasi.
-  const fill = fullScreen || message !== undefined;
-
+export function LoadingState({ label = 'Memuat…', fullScreen = false }: LoadingStateProps) {
   return (
     <View
       role="progressbar"
       aria-busy
       aria-live="polite"
-      aria-label={text}
-      style={[styles.container, fill && styles.fullScreen]}
+      aria-label={label}
+      style={[styles.container, fullScreen && styles.fullScreen]}
     >
       <ActivityIndicator size="large" color={colors.primary} />
-      <Text style={styles.label}>{text}</Text>
+      <Text style={styles.label}>{label}</Text>
     </View>
   );
 }

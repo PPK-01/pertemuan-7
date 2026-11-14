@@ -7,7 +7,7 @@ import { typography } from '@/theme/typography';
 
 export type OfflineBannerProps = {
   /** Status koneksi dari pemanggil; komponen tidak membaca store atau NetInfo sendiri. */
-  isOnline?: boolean;
+  isOnline: boolean;
   message?: string;
 };
 
@@ -21,7 +21,7 @@ const { bg, text } = colors.feedback.warning;
  * Pita peringatan di bagian atas layar, bukan overlay: konten di bawahnya ikut turun.
  * Dirancang dipasang paling atas, jadi menambahkan inset atas safe area sendiri.
  */
-export function OfflineBanner({ isOnline = false, message = DEFAULT_MESSAGE }: OfflineBannerProps) {
+export function OfflineBanner({ isOnline, message = DEFAULT_MESSAGE }: OfflineBannerProps) {
   const insets = useSafeAreaInsets();
 
   if (isOnline) return null;

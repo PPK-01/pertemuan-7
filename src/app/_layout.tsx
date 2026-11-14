@@ -85,7 +85,7 @@ export default function RootLayout() {
   return (
     <View style={{ flex: 1 }}>
       <StatusBar style="light" />
-      {!isOnline ? <OfflineBanner /> : null}
+      <OfflineBanner isOnline={isOnline} />
       <Stack
         screenOptions={{
           headerShown: false,

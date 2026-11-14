@@ -116,7 +116,7 @@ export type Sentimen = 'positif' | 'netral' | 'negatif';
 User           { id /* = uid */, name, email, role, kelas? }
 KelasPraktikum { id, praktikum, kelas, createdBy }
 Session        { id, praktikum, kelas, topik, ruang, startAt, endAt, status,
-                 createdBy, openedAt?, closedAt? }      // field `code` DIHAPUS dari Session
+                 createdBy, openedAt?, closedAt? }      // field `code` DIHAPUS dari Session (tipe dan dokumen)
 Attendance     { id, sessionId, userId, timestamp }     // tetap
 
 AiErrorCode = 'MODEL_ERROR'          // model gagal dimuat atau melempar exception
@@ -182,7 +182,8 @@ State : authStatus: 'loading' | 'signedOut' | 'signedIn', currentUser: User | nu
 Aksi  : register(input)                -> Promise<Result<User>>
         login(email, password)         -> Promise<Result<User>>
         logout()                       -> Promise<void>     // lepas listener, kosongkan cache
-        createSession(input)           -> Promise<Result<Session>>   // status awal 'scheduled'; kode dibuat service
+        createSession(input)           -> Promise<Result<Session>>   // status awal 'scheduled'; kode dibuat service;
+                                                                     // data.id = id dokumen Firestore final
         updateSession(id, patch)       -> Promise<Result>
         deleteSession(id)              -> Promise<Result>
         openSession(id) / closeSession(id) -> Promise<Result>
@@ -195,12 +196,22 @@ Hook baca (dipakai layar; yang bertanda * baru):
         useSessionsForUser(userId), useSessionById(id), useAttendanceBySession(sessionId),
         useAttendanceByUser(userId), useHasAttended(sessionId, userId), useRekap(sessionId),
         useCurrentUser() (kini dari auth), useAuthStatus()*, useIsOnline()*, useSyncState(key)*,
-        useKelasList()*, useSessionCode(sessionId)* (asisten saja),
+        useKelasList()*, useSessionCode(sessionId)* (asisten saja; wajib ada),
         useIzinByUser(userId)*, useIzinById(id)*, useIzinForAsisten(filter?)*, useIzinBySession(sessionId)*
 Fungsi murni: computeRekap(session, users, attendances, izinList) -> Rekap
 ```
 
-Perubahan terhadap v1.3: aksi menjadi **async dan mengembalikan `Result`**; `role` dan `currentUserId` digantikan `currentUser`; `submitAttendance` tidak menerima `userId`. Hook baca lama dipertahankan agar perubahan di layar minimal. Aturan Zustand v5 tetap berlaku: hook memakai `useShallow` untuk hasil filter dan `useMemo` untuk data bentukan (rekap).
+Perubahan terhadap v1.3: aksi menjadi **async dan mengembalikan `Result`**; `role` dan `currentUserId` digantikan `currentUser`; `submitAttendance` tidak menerima `userId`. Hook baca lama dipertahankan agar perubahan di layar minimal.
+
+Ketentuan tambahan:
+
+- Semua aksi tulis, termasuk aksi asisten (`createSession`, `updateSession`, `deleteSession`, `openSession`, `closeSession`, `addKelas`, `updateKelas`, `deleteKelas`, `reviewIzin`, `retryAi`), mengembalikan `Promise<Result<...>>` dengan tipe persis seperti di atas, tanpa union dengan nilai sinkron. `createSession` mengembalikan id dokumen Firestore final, bukan id sementara.
+- API sinkron Sprint 1 (mis. `role`, `currentUserId`, `resetIdentity`, aksi yang mengembalikan `boolean` atau `Session`) **tidak dipertahankan** sebagai lapisan kompatibilitas; layar asisten bermigrasi di E-05 s.d. E-10.
+- `useSessionCode(sessionId)` wajib ada dan membaca `private/code` hanya untuk asisten. `Session` tidak memiliki field `code`, baik di tipe maupun di dokumen `sessions/{id}`; `KELAS_LIST`/`PRAKTIKUM_LIST` dihapus.
+
+**Mode pengembangan tanpa Firebase.** Implementasi in-memory hanya aktif bila konfigurasi Firebase kosong, untuk pengembangan dan uji tampilan. Mode ini wajib meniru listener: setiap tulis langsung terlihat di layar tanpa logout. Data dummy mencakup asisten, praktikan kelas A dan B, `kelasPraktikum`, sesi di tiga status, presensi, dan izin di keempat status (termasuk hasil AI sukses dan gagal). Bila Firebase terkonfigurasi tetapi perangkat offline, aplikasi **tidak** beralih ke memori; aksi tulis diblokir (FR-29).
+
+Aturan Zustand v5 tetap berlaku: hook memakai `useShallow` untuk hasil filter dan `useMemo` untuk data bentukan (rekap).
 
 **Siklus listener:** setelah `authStatus = signedIn` store memanggil `startSync(user)`; `logout()` memanggil `stopSync()`.
 
@@ -220,10 +231,10 @@ Kolom **Status** membandingkan dengan SRS v1.3: *Tetap*, *Diubah* (perilaku beru
 | ID | Kebutuhan | Peran | Status | Prioritas |
 | --- | --- | --- | --- | --- |
 | FR-01 | Pilih peran dummy diganti login. Tombol "Ganti peran" diganti "Keluar" (FR-15). | Keduanya | Diubah | Must |
-| FR-13 | **Registrasi**: nama, email, kata sandi + konfirmasi, dan peran. Praktikan wajib memilih kelas (dari `kelasPraktikum`); asisten wajib mengisi kode undangan. Akun Auth dan dokumen `users/{uid}` dibuat berurutan; bila dokumen gagal dibuat, akun Auth yang baru dibuat dihapus dan pengguna diberi pesan. Kode undangan salah (ditolak rules) dipetakan ke "Kode undangan asisten tidak sesuai". | Keduanya | Baru | Must |
+| FR-13 | **Registrasi**: nama, email, kata sandi + konfirmasi, dan peran. Praktikan wajib memilih kelas (dari `kelasPraktikum`); asisten wajib mengisi kode undangan. Akun Auth dan dokumen `users/{uid}` dibuat berurutan; bila dokumen gagal dibuat, akun Auth yang baru dibuat dihapus dan pengguna diberi pesan. Kode undangan salah (ditolak rules) dipetakan ke "Kode undangan asisten tidak sesuai". Nilai kode undangan hanya ada di `config/asisten` dan diverifikasi oleh rules; nilainya tidak boleh ditulis di kode aplikasi (termasuk data dummy). | Keduanya | Baru | Must |
 | FR-14 | **Login** dengan email dan kata sandi; state loading, tombol nonaktif saat submit, pesan error spesifik (4.3). | Keduanya | Baru | Must |
 | FR-15 | **Logout** dari header: listener dilepas, cache store dikosongkan, kembali ke layar login. | Keduanya | Baru | Must |
-| FR-16 | Sesi login bertahan setelah aplikasi ditutup. Saat startup tampil layar loading sampai status auth diketahui, lalu profil `users/{uid}` dimuat. Bila profil tidak ditemukan, tampil pesan dan pengguna di-logout. | Keduanya | Baru | Must |
+| FR-16 | Sesi login bertahan setelah aplikasi ditutup. Saat startup tampil layar loading sampai status auth diketahui, lalu profil `users/{uid}` dimuat. Bila profil tidak ditemukan, tampil pesan dan pengguna di-logout. Saat registrasi berlangsung, gate rute menunggu dokumen profil selesai dibuat sebelum memutuskan "profil tidak ditemukan". | Keduanya | Baru | Must |
 | FR-17 | **Gate rute per peran**: belum login hanya dapat membuka `(auth)`; praktikan tidak dapat membuka `/asisten/**` dan sebaliknya (dialihkan ke beranda perannya). Menu dan tombol hanya ditampilkan sesuai peran. | Keduanya | Baru | Must |
 
 **Kelas, sesi, dan presensi**
@@ -252,7 +263,7 @@ Kolom **Status** membandingkan dengan SRS v1.3: *Tetap*, *Diubah* (perilaku beru
 | FR-22 | Izin disimpan di `izin/{sessionId}_{uid}` berstatus `pending_ai`; satu izin per praktikan per sesi. Pengajuan ulang setelah ditolak masuk backlog. | Praktikan | Baru | Must |
 | FR-23 | Setelah tersimpan, aplikasi praktikan menjalankan AI di perangkat (model EDOM lokal + aturan kata kunci, bagian 5), menyimpan hasilnya ke `ai`, dan mengubah status ke `pending_review`. Bila izin masih `pending_ai` ketika aplikasi praktikan dibuka kembali, AI dijalankan ulang otomatis satu kali. | Praktikan | Baru | Must |
 | FR-24 | **AI gagal** (model gagal dimuat atau melempar exception, `MODEL_ERROR`): izin tetap tersimpan, `ai.state = failed`, status tetap menjadi `pending_review`. Alasan yang tidak dikenali model (`label: null`) **bukan** kegagalan (5.4). Praktikan melihat "Menunggu pemeriksaan asisten" tanpa pesan teknis. Asisten melihat penyebab gagal dan tombol **Coba lagi analisis AI** (`retryAi`). | Keduanya | Baru | Must |
-| FR-25 | Daftar izin untuk asisten (realtime): filter Perlu diperiksa / Disetujui / Ditolak / Semua, terbaru di atas; jumlah "perlu diperiksa" tampil sebagai badge di beranda asisten. | Asisten | Baru | Must |
+| FR-25 | Daftar izin untuk asisten (realtime): filter Perlu diperiksa / Disetujui / Ditolak / Semua, terbaru di atas. "Perlu diperiksa" mencakup `pending_ai` dan `pending_review`; badge di beranda asisten menghitung keduanya. | Asisten | Baru | Must |
 | FR-26 | **Pemeriksaan izin**: detail menampilkan identitas praktikan, sesi, alasan, dan **saran AI** (kategori, saran "Diterima"/"Ditolak"/"Perlu dicek", sentimen teks berlabel "eksperimental", penjelasan) atau status gagal. Asisten memutuskan Setujui atau Tolak lewat bottom sheet konfirmasi dengan catatan opsional (maks. 200 karakter); bila keputusan berbeda dari saran `diterima`/`ditolak`, sheet menampilkan penanda (saran `perlu_cek` tidak memicu penanda). Keputusan disimpan di `review`. | Asisten | Baru | Must |
 | FR-27 | Praktikan melihat status izin dan keputusan asisten (beserta catatan) secara realtime di tab Izin dan detail izin, tanpa menjalankan ulang aplikasi. Saran AI tidak ditampilkan ke praktikan. | Praktikan | Baru | Must |
 | FR-28 | Izin berstatus `approved` tampil di rekap pada kelompok Izin dan tidak dihitung belum hadir; presensi praktikan tersebut ditolak (`IZIN_APPROVED`). | Keduanya | Baru | Should |
@@ -261,7 +272,7 @@ Kolom **Status** membandingkan dengan SRS v1.3: *Tetap*, *Diubah* (perilaku beru
 
 | ID | Kebutuhan | Peran | Status | Prioritas |
 | --- | --- | --- | --- | --- |
-| FR-29 | **Indikator koneksi**: banner "Tidak ada koneksi" saat offline; aksi tulis (presensi, izin, ubah status, CRUD) dinonaktifkan dengan keterangan; data terakhir yang termuat tetap tampil; saat online kembali banner hilang dan data tersinkron otomatis. | Keduanya | Baru | Must |
+| FR-29 | **Indikator koneksi**: banner "Tidak ada koneksi" saat offline; aksi tulis dinonaktifkan dengan keterangan. Pra-cek offline dan timeout 10 detik berlaku untuk **semua** aksi tulis store: presensi, izin (`submitIzin`, `retryAi`, `reviewIzin`), CRUD dan ubah status sesi, serta CRUD kelas; data terakhir yang termuat tetap tampil; saat online kembali banner hilang dan data tersinkron otomatis. | Keduanya | Baru | Must |
 | FR-30 | **Validasi dan pesan error**: semua form divalidasi di klien (4.2), error Firebase dipetakan ke pesan bahasa Indonesia (4.3), dan rules memvalidasi ulang di server. | Keduanya | Baru | Must |
 | FR-31 | **Security rules** membatasi akses dan perubahan data menurut peran (bagian 6). | Keduanya | Baru | Must |
 | FR-12 | Dua alur demo end-to-end (bagian 9) berjalan konsisten. | Keduanya | Diubah | Must |
@@ -399,7 +410,7 @@ Untuk menguji alur gagal (FR-24, skenario tepi bagian 9) tanpa merusak file mode
 - Aturan *deny by default*: tidak ada koleksi yang terbuka kecuali disebut.
 - Peran dibaca server dari `users/{uid}`, bukan dari klien. Peran dan kelas tidak dapat diubah setelah registrasi.
 - Aturan bisnis penting dijaga dua lapis: pra-cek di aplikasi untuk pesan yang jelas, dan rules sebagai penjaga akhir.
-- Rahasia (`.env`) tidak masuk repo.
+- Rahasia (`.env`) tidak masuk repo. Kode undangan asisten hanya disimpan di `config/asisten` dan diverifikasi rules, tidak ditulis di kode aplikasi.
 
 ### 6.2 Ringkasan Akses per Koleksi
 
@@ -458,7 +469,9 @@ service cloud.firestore {
       allow update: if isAsisten()
         && request.resource.data.createdBy == resource.data.createdBy
         && request.resource.data.startAt < request.resource.data.endAt
-        && ((resource.data.status == request.resource.data.status && resource.data.status != 'closed')
+        && ((resource.data.status == 'scheduled' && request.resource.data.status == 'scheduled')
+            || (resource.data.status == 'open' && request.resource.data.status == 'open'
+                && changedOnly(['topik', 'ruang', 'endAt', 'updatedAt']))
             || (resource.data.status == 'scheduled' && request.resource.data.status == 'open')
             || (resource.data.status == 'open' && request.resource.data.status == 'closed'));
       allow delete: if isAsisten() && resource.data.status == 'scheduled';
@@ -511,7 +524,7 @@ service cloud.firestore {
 }
 ```
 
-Catatan tambahan: saat sesi berstatus Dibuka, pembaruan sesi hanya boleh mengubah `topik`, `ruang`, `endAt`, `updatedAt` (tambahkan `changedOnly` pada cabang tersebut). Menghapus dokumen sesi tidak menghapus subkoleksinya, sehingga klien menghapus `private/code` dan sesi dalam satu batch.
+Catatan tambahan: saat sesi berstatus Dibuka, pembaruan sesi hanya boleh mengubah `topik`, `ruang`, `endAt`, `updatedAt` (sudah dimasukkan sebagai `changedOnly` pada cabang update di atas). Menghapus dokumen sesi tidak menghapus subkoleksinya, sehingga klien menghapus `private/code` dan sesi dalam satu batch.
 
 ### 6.4 Risiko Sisa yang Diterima
 
@@ -547,7 +560,7 @@ NFR-01, NFR-04, dan NFR-06 dari v1.3 tetap berlaku. Sisanya diperbarui atau dita
 | NFR-06 Platform | Tetap: development build Android dan `expo start --web`. |
 | NFR-07 Keamanan | Rules deny-by-default sesuai bagian 6; tidak ada rahasia di repo; tidak ada data pribadi atau kunci di log. |
 | NFR-08 Realtime | Perubahan sesi, presensi, dan izin terlihat di perangkat lain dalam ≤ 3 detik pada koneksi normal tanpa refresh manual. |
-| NFR-09 Ketahanan | AI error, offline, dan penolakan rules tidak membuat aplikasi crash atau layar kosong tanpa penjelasan; setiap penulisan memiliki timeout 10 detik. |
+| NFR-09 Ketahanan | AI error, offline, dan penolakan rules tidak membuat aplikasi crash atau layar kosong tanpa penjelasan; setiap penulisan (termasuk aksi asisten dan izin) memiliki pra-cek offline dan timeout 10 detik. |
 | NFR-10 Privasi | Praktikan hanya dapat membaca jadwal kelasnya serta presensi dan izinnya sendiri; alasan izin diproses AI di perangkat dan tidak dikirim ke layanan luar; nama dan email tidak dipakai model. |
 | NFR-11 Efisiensi kuota | Listener dibatasi query menurut peran, dilepas saat logout dan saat layar tidak lagi memerlukannya, tanpa polling (kuota gratis Spark terbatas). |
 | NFR-12 Testabilitas (Should) | Rules diuji di emulator; `computeRekap`, fungsi validasi, `categorizeIzin`, dan pemetaan saran AI berupa fungsi murni. |
@@ -578,6 +591,7 @@ NFR-01, NFR-04, dan NFR-06 dari v1.3 tetap berlaku. Sisanya diperbarui atau dita
 - Tombol **Keluar** menggantikan "Ganti peran": pada praktikan di layar jadwal, pada asisten di layar `index`.
 - Tab praktikan menjadi Jadwal · Izin · Riwayat; `PraktikanTabBar` (tombol aksi cepat bulat) menyesuaikan tiga tab.
 - Banner offline global dipasang di root layout memakai komponen dari Elang lewat props `isOnline`.
+- Props komponen yang disepakati: `OfflineBanner` menerima `isOnline: boolean`; `AiSuggestionCard` menerima `ai: AiResult` dan `onRetry?: () => void` (tombol "Coba lagi" hanya tampil saat `ai.state === 'failed'`). Komponen tidak mengimpor store atau `services/`.
 - Alur izin praktikan: detail sesi → Ajukan izin → form alasan → Kirim → `izin/[id]` dengan status "Menunggu analisis" yang berubah realtime menjadi "Menunggu pemeriksaan asisten" lalu "Disetujui" atau "Ditolak".
 - Alur izin asisten: beranda (badge) → daftar izin → detail → saran AI → Setujui/Tolak → bottom sheet konfirmasi → status diperbarui.
 
@@ -659,15 +673,17 @@ src/
   utils/ (time.ts, id.ts)          DHIMAS   createSessionCode() dipakai services/sessions.ts
   theme/ (colors, spacing,         ELANG    + token status izin dan warning
           typography)
-  components/ui/                   ELANG    + OfflineBanner, LoadingState, field kata sandi
+  components/ui/                   ELANG    + OfflineBanner (`isOnline`), LoadingState, field kata sandi
   components/session/              ELANG
   components/izin/                 ELANG    baru: IzinStatusBadge, IzinRow, AiSuggestionCard
-                                            (hanya props; tanpa akses store)
+                                            (`ai`, `onRetry?`; hanya props; tanpa akses store)
   features/auth/                   DHIMAS   baru: LoginForm, DaftarForm, authValidation.ts
   features/praktikan/              DHIMAS   + IzinForm, izinValidation.ts, izinMessages.ts,
                                             KeluarButton (ganti GantiPeranButton)
   features/asisten/                ELANG    + KelasForm, KelasRow, kelasValidation.ts, IzinReviewSheet;
                                             RekapList ditambah kelompok Izin
+ai/                                DHIMAS   model EDOM (`sentiment.js`, `model-edom.json`) beserta
+                                            lisensi dan atribusinya
 firestore.rules                    DHIMAS   baru
 firestore.indexes.json, firebase.json   DHIMAS   baru
 .env.example                       DHIMAS   baru (nama variabel saja); .env masuk .gitignore
@@ -682,8 +698,9 @@ DESIGN.md                          ELANG    ditambah status izin dan banner offl
 3. **Tidak ada barrel `index.ts` bersama.** Impor langsung per file.
 4. **Tidak menyentuh `package.json` dan lockfile** setelah Fase 0.
 5. **Layar hanya memanggil aksi dan hook baca dari store.** Aturan bisnis tidak diduplikasi di layar; filter tampilan berbasis state UI boleh di layar.
-6. **`services/` hanya diimpor oleh `store/`.** Layar, fitur, dan komponen tidak mengimpor `firebase`.
-7. **Kontrak bersama diumumkan sebelum merge**: `types`, tanda tangan store dan hook, struktur koleksi Firestore, dan `firestore.rules`. Pemilik tunggal: Dhimas. Deploy rules hanya oleh Dhimas.
+6. **`services/` hanya diimpor oleh `store/`.** Layar (termasuk root layout `app/_layout.tsx`), fitur, dan komponen tidak mengimpor `services/` ataupun `firebase`; kebutuhan seperti pengamatan status auth disediakan lewat aksi store.
+7. **Kepemilikan tidak berpindah karena pembuat file.** File di `src/components/**`, `src/theme/**`, dan `DESIGN.md` yang dibuat atau diubah saat implementasi D-xx (mis. `OfflineBanner`, `LoadingState`, `TextField`, `IdentityCard`, `CodeDisplay`, `components/izin/**`) tetap milik Elang; Elang menyelaraskannya ke token tema di E-02 dan E-04.
+8. **Kontrak bersama diumumkan sebelum merge**: `types`, tanda tangan store dan hook, struktur koleksi Firestore, dan `firestore.rules`. Pemilik tunggal: Dhimas. Deploy rules hanya oleh Dhimas.
 
 ### Dampak pada Kode Sprint 1
 
@@ -747,7 +764,7 @@ Urutan Dhimas: D-01, D-02, D-03, lalu D-04 paralel dengan D-05, D-06, D-07, D-08
 | --- | --- | --- | --- | --- | --- |
 | E-01 | Review kontrak `types` dan store/hook; sampaikan keberatan sebelum merge | n/a | n/a | D-03 | Komentar review di PR kontrak |
 | E-02 | Token tema: status izin, warning, banner offline | NFR-04 | `theme/**` | D-03 | Kontras teks ≥ 4.5:1 |
-| E-03 | Stub komponen baru dengan **props final**: OfflineBanner, LoadingState, field kata sandi, IzinStatusBadge, IzinRow, AiSuggestionCard | NFR-02 | `components/ui/**`, `components/izin/**` | D-03 | Dhimas dapat memakainya tanpa menunggu |
+| E-03 | Stub komponen baru dengan **props final**: OfflineBanner (`isOnline`), LoadingState, field kata sandi, IzinStatusBadge, IzinRow, AiSuggestionCard (`ai`, `onRetry?`) | NFR-02 | `components/ui/**`, `components/izin/**` | D-03 | Dhimas dapat memakainya tanpa menunggu |
 | E-04 | Finalisasi UI Kit: responsif, state loading, disabled, error, offline | NFR-01, NFR-02, NFR-04 | `components/**` | E-03 | Benar di 360dp, tablet, landscape |
 | E-05 | Daftar sesi asisten: filter status, badge izin, pintasan Izin dan Kelas, tombol Keluar | FR-02, FR-15 (tampilan) | `asisten/_layout`, `asisten/index`, `features/asisten/SessionListItem` | D-03 | Layar berjalan dengan implementasi sementara |
 | E-06 | Form buat dan ubah sesi, hapus sesi, buka/tutup, kode lewat `useSessionCode`, pilihan praktikum/kelas dari `useKelasList()` | FR-04 s.d. FR-06, FR-18, FR-19 | `asisten/buat`, `asisten/sesi/[id]`, `features/asisten/SessionForm`, `StatusActionSheet`, `sessionFormValidation.ts` | D-03; D-07 untuk data nyata | Buat, ubah, hapus, buka, tutup berjalan |
@@ -788,13 +805,14 @@ Aturan kerja: tugas selesai bila PR di-merge, `npx tsc --noEmit` lolos, diuji pe
 
 ## 12. Alur Git dan Konfigurasi
 
-- `main` dilindungi; semua lewat PR dengan 1 review dari rekan developer. PR yang mengubah kontrak (types, tanda tangan store/hook, struktur Firestore, rules) juga wajib disetujui Ibrahim (PM).
-- Branch: `feat/dhimas-<topik>` dan `feat/elang-<topik>` (`chore/...` untuk pekerjaan non-fitur). Commit kecil, PR kecil (maksimal satu layar atau fitur).
+- `main` dilindungi: branch protection (minimal 1 approval, tanpa push langsung) wajib aktif sebelum PR berikutnya di-merge; semua lewat PR dengan 1 review dari rekan developer. PR yang mengubah kontrak (types, tanda tangan store/hook, struktur Firestore, rules) juga wajib disetujui Ibrahim (PM).
+- Branch: `feat/dhimas-<topik>` dan `feat/elang-<topik>` (`chore/...` untuk pekerjaan non-fitur). Commit kecil, PR kecil (maksimal satu layar atau fitur). PR dipecah per tugas (satu D-xx atau E-xx per PR), bukan satu PR untuk banyak tugas.
 - Commit message berformat **head-body**, tanpa trailer co-author dari AI (`Co-Authored-By`).
 - Rebase dari `main` sebelum membuka PR. Karena folder terpisah, konflik seharusnya nol.
 - Aturan AI agent dari v1.3 tetap: boleh commit dan push ke branch fitur sampai PR draft dengan atribusi dimatikan dan identitas git milik developer; `git log -i --grep="co-authored-by"` diperiksa kosong sebelum push; tidak boleh push ke `main` atau merge PR. PR bertumpuk diperbolehkan sebagai draft dan di-rebase setelah PR dasar di-merge.
-- **Rahasia:** `.env` tidak pernah di-commit; `.env.example` hanya memuat nama variabel. Kredensial Firebase dibagikan lewat jalur privat. AI agent tidak boleh mencetak, meng-commit, atau menyalin isi `.env`.
+- **Rahasia:** `.env` tidak pernah di-commit; `.gitignore` wajib memuat `.env` (bukan hanya `.env*.local`); `.env.example` hanya memuat nama variabel. Kredensial Firebase dibagikan lewat jalur privat. AI agent tidak boleh mencetak, meng-commit, atau menyalin isi `.env`.
 - Perubahan kontrak (types, tanda tangan store/hook, struktur Firestore, rules) diumumkan ke rekan sebelum merge. Deploy rules hanya oleh Dhimas (`firebase deploy --only firestore:rules`).
+- **Development build:** Sprint 2 menambah native module (`@react-native-async-storage/async-storage`, `@react-native-community/netinfo`), sehingga development build Android wajib di-build ulang (`npx expo run:android` atau `eas build --profile development`) sebelum uji di perangkat. Penanggung jawab rebuild dan distribusi APK ditentukan PM.
 
 ## 13. Definition of Done
 
@@ -822,6 +840,7 @@ Aturan kerja: tugas selesai bila PR di-merge, `npx tsc --noEmit` lolos, diuji pe
 | Registrasi setengah jalan (akun Auth ada, profil gagal dibuat) | Rollback akun Auth; FR-16 menangani profil yang hilang |
 | Pendaftar mengaku asisten | Kode undangan divalidasi rules; bila bocor, ganti nilai `config/asisten` di Console |
 | Konflik merge pada `types`, `store`, `rules` | Pemilik tunggal Dhimas; perubahan diumumkan |
+| PR besar di-merge tanpa review (kontrak dan perilaku tidak terperiksa) | Proteksi `main` aktif (1 approval wajib, tanpa push langsung); PR dipecah per tugas D-xx/E-xx; PR kontrak disetujui PM (P-03) |
 | Kode sesi dianggap di luar kebutuhan | Tetap keputusan desain Sprint 1 agar presensi bermakna; kode kini dijaga server |
 
 ## 15. Riwayat Perubahan

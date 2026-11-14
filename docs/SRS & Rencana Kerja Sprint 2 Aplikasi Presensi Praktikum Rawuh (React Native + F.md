@@ -337,7 +337,7 @@ categorizeIzin(alasan: string): IzinKategori      // fungsi murni, diekspor agar
 1. **Sentimen**: `createSentimentClassifier(model)(alasan)` menghasilkan `{ label, status, scores }`. `label` (`positif | netral | negatif` atau `null`) disimpan sebagai `sentimen`, `scores` sebagai `skor`.
 2. **Kategori**: `categorizeIzin(alasan)` dengan ketentuan:
    - Teks dinormalisasi: huruf kecil, tanda baca diganti spasi, spasi berlebih diringkas.
-   - Dicocokkan per **kata utuh atau frasa**, bukan substring (agar "sibuk" tidak cocok dengan "ibu").
+   - Dicocokkan per **kata utuh atau frasa**, bukan substring (pada pemetaan sebelum v2.2, "sibuk" sempat cocok dengan "ibu").
    - Bila lebih dari satu kategori cocok, prioritasnya `sakit` > `keluarga` > `akademik` > `tidak_jelas`. Bila tidak ada yang cocok, hasilnya `lainnya`.
 3. **Saran** diturunkan dari kategori (tabel di bawah), bukan dari sentimen.
 4. **Penjelasan** dibentuk dari template, tanpa teks bebas dari model, maks. 200 karakter. Contoh: "Alasan terdeteksi kategori sakit. Sentimen teks: netral (eksperimental)." Bila sentimen `null`: "Sentimen teks: tidak dikenali (eksperimental)."
@@ -347,10 +347,12 @@ Daftar awal kata kunci (dapat diperluas tanpa mengubah kontrak):
 | Kategori | Kata kunci atau frasa | Saran |
 | --- | --- | --- |
 | `sakit` | sakit, demam, dirawat, rumah sakit, opname, dokter, klinik, operasi, kecelakaan | `diterima` |
-| `keluarga` | meninggal, wafat, duka, pemakaman, orang tua, ibu, ayah, nikahan saudara | `diterima` |
+| `keluarga` | meninggal, wafat, duka, pemakaman, orang tua sakit, keluarga sakit, saudara menikah, nikahan saudara | `diterima` |
 | `akademik` | lomba, kompetisi, seminar, konferensi, ujian, delegasi, dispensasi, surat tugas | `diterima` |
-| `tidak_jelas` | malas, ketiduran, lupa, bangun kesiangan, main, nongkrong | `ditolak` |
+| `tidak_jelas` | malas, ketiduran, lupa, bangun kesiangan, main game, nongkrong | `ditolak` |
 | `lainnya` | (tidak ada kata kunci yang cocok) | `perlu_cek` |
+
+Kata tunggal yang bermakna umum (mis. "ibu", "ayah", "main") tidak dipakai karena mudah salah cocok (mis. "ibu dosen", "main" dalam konteks lain); yang dipakai frasa yang spesifik. Karena prioritas, frasa yang memuat "sakit" (mis. "orang tua sakit") masuk kategori `sakit`; sarannya tetap `diterima`.
 
 `categorizeIzin`, daftar kata kunci, dan pemetaan kategori → saran berupa fungsi dan konstanta murni di `src/services/ai.ts` (milik Dhimas) sehingga mudah diuji (NFR-12).
 
@@ -396,6 +398,8 @@ Sentimen mengukur nada teks, bukan kelayakan alasan: rawat inap dan lomba resmi 
 | saya ketiduran | `tidak_jelas` | `ditolak` |
 | saya sibuk | `lainnya` | `perlu_cek` |
 | asdf | `lainnya` (sentimen `null`, bukan gagal) | `perlu_cek` |
+| ibu dosen meminta saya membantu acara | `lainnya` | `perlu_cek` |
+| saya main game sampai pagi | `tidak_jelas` | `ditolak` |
 
 Kalimat "asdf" menguji fungsi secara langsung; lewat form, alasan sesungguhnya minimal 10 karakter (4.2).
 

@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Banner } from '@/components/ui/Banner';
 import { Button } from '@/components/ui/Button';
 import { CodeCells } from '@/components/ui/CodeCells';
+import { PasswordField } from '@/components/ui/PasswordField';
 import { TextField } from '@/components/ui/TextField';
 import { validateEmail } from '@/features/auth/authValidation';
 import { useAppStore } from '@/store/appStore';
@@ -126,7 +127,7 @@ export default function LoginScreen() {
                 error={emailError}
               />
 
-              <TextField
+              <PasswordField
                 label="Kata Sandi"
                 placeholder="Masukkan kata sandi"
                 value={password}
@@ -135,7 +136,6 @@ export default function LoginScreen() {
                   if (passwordError) setPasswordError(undefined);
                   if (generalError) setGeneralError(undefined);
                 }}
-                secureTextEntry
                 error={passwordError}
               />
             </View>

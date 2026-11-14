@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
+import type { ReactNode } from 'react';
 import { Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { StyleProp, TextInputProps, ViewStyle } from 'react-native';
 
@@ -19,6 +20,11 @@ export type TextFieldProps = {
   maxLength?: number;
   autoCapitalize?: TextInputProps['autoCapitalize'];
   secureTextEntry?: boolean;
+  autoComplete?: TextInputProps['autoComplete'];
+  autoCorrect?: boolean;
+  textContentType?: TextInputProps['textContentType'];
+  /** Aksesori di sisi kanan dalam kotak input, mis. tombol tampilkan kata sandi. */
+  right?: ReactNode;
   /** Khusus layout (margin, flex, alignSelf), bukan warna/ukuran. */
   style?: StyleProp<ViewStyle>;
 };
@@ -38,38 +44,60 @@ export function TextField({
   maxLength,
   autoCapitalize,
   secureTextEntry,
+  autoComplete,
+  autoCorrect,
+  textContentType,
+  right,
   style,
 }: TextFieldProps) {
   const [focused, setFocused] = useState(false);
+  const [rightWidth, setRightWidth] = useState(0);
+  // Id dari label bisa berisi spasi, sedangkan aria-describedby di web memisah id dengan spasi.
+  const messageId = useId();
   const hasError = Boolean(error);
   const message = hasError ? error : hint;
 
   return (
     <View style={[styles.container, style]}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        placeholder={placeholder}
-        placeholderTextColor={colors.textMuted}
-        keyboardType={keyboardType}
-        maxLength={maxLength}
-        autoCapitalize={autoCapitalize}
-        secureTextEntry={secureTextEntry}
-        aria-label={label}
-        aria-describedby={message ? `${label}-hint` : undefined}
-        aria-invalid={hasError}
-        style={[
-          styles.input,
-          hasError && styles.inputError,
-          focused && !hasError && styles.inputFocused,
-        ]}
-      />
+      <View>
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          placeholder={placeholder}
+          placeholderTextColor={colors.textMuted}
+          keyboardType={keyboardType}
+          maxLength={maxLength}
+          autoCapitalize={autoCapitalize}
+          secureTextEntry={secureTextEntry}
+          autoComplete={autoComplete}
+          autoCorrect={autoCorrect}
+          textContentType={textContentType}
+          aria-label={label}
+          aria-describedby={message ? messageId : undefined}
+          aria-invalid={hasError}
+          style={[
+            styles.input,
+            hasError && styles.inputError,
+            focused && !hasError && styles.inputFocused,
+            right ? { paddingRight: rightWidth } : null,
+          ]}
+        />
+        {/* Menutupi tepi kanan input setinggi kotaknya agar area sentuh aksesori tidak terpotong. */}
+        {right ? (
+          <View
+            style={styles.right}
+            onLayout={(event) => setRightWidth(event.nativeEvent.layout.width)}
+          >
+            {right}
+          </View>
+        ) : null}
+      </View>
       {message ? (
         <Text
-          nativeID={`${label}-hint`}
+          nativeID={messageId}
           style={[styles.message, hasError && styles.messageError]}
         >
           {message}
@@ -107,6 +135,13 @@ const styles = StyleSheet.create({
     borderWidth: FOCUS_BORDER_WIDTH,
     paddingHorizontal: spacing.md - FOCUS_INSET,
     paddingVertical: spacing.sm - FOCUS_INSET,
+  },
+  right: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: 0,
+    justifyContent: 'center',
   },
   message: { ...typography.caption, color: colors.textMuted },
   messageError: { color: colors.feedback.danger.text },

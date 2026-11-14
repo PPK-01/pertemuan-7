@@ -1,44 +1,78 @@
 import { StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 
 export type OfflineBannerProps = {
+  /** Status koneksi dari pemanggil; komponen tidak membaca store atau NetInfo sendiri. */
+  isOnline: boolean;
   message?: string;
 };
 
-export function OfflineBanner({
-  message = 'Tidak ada koneksi internet. Mode baca aktif, aksi tulis dinonaktifkan.',
-}: OfflineBannerProps) {
+const DEFAULT_MESSAGE =
+  'Tidak ada koneksi. Data terakhir tetap tampil, perubahan belum bisa disimpan.';
+const ICON_SIZE = 20;
+
+const { bg, text } = colors.feedback.warning;
+
+/**
+ * Pita peringatan di bagian atas layar, bukan overlay: konten di bawahnya ikut turun.
+ * Dirancang dipasang paling atas, jadi menambahkan inset atas safe area sendiri.
+ */
+export function OfflineBanner({ isOnline, message = DEFAULT_MESSAGE }: OfflineBannerProps) {
+  const insets = useSafeAreaInsets();
+
+  if (isOnline) return null;
+
   return (
-    <View style={styles.banner}>
-      <View style={styles.dot} />
-      <Text style={styles.text}>{message}</Text>
+    <View
+      role="alert"
+      aria-live="polite"
+      style={[
+        styles.banner,
+        {
+          paddingTop: insets.top + spacing.sm,
+          paddingLeft: insets.left + spacing.lg,
+          paddingRight: insets.right + spacing.lg,
+        },
+      ]}
+    >
+      <View aria-hidden style={styles.icon}>
+        <Text style={styles.iconGlyph}>!</Text>
+      </View>
+      <Text style={styles.message}>{message}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   banner: {
-    backgroundColor: '#FFF1C2',
-    borderColor: '#E6A700',
-    borderWidth: 1,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+    paddingBottom: spacing.sm,
+    backgroundColor: bg,
+    borderBottomWidth: 1,
+    borderBottomColor: text,
   },
-  dot: {
-    width: 8,
-    height: 8,
+  icon: {
+    width: ICON_SIZE,
+    height: ICON_SIZE,
     borderRadius: radius.full,
-    backgroundColor: '#B25900',
+    backgroundColor: text,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  text: {
+  iconGlyph: {
     ...typography.caption,
-    color: '#5E3B00',
-    fontWeight: '600',
+    fontWeight: '700',
+    color: bg,
+  },
+  message: {
+    ...typography.label,
+    color: text,
     flex: 1,
   },
 });

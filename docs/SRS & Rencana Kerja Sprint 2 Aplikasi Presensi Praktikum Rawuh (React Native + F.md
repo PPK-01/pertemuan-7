@@ -1,6 +1,6 @@
 # SRS & Rencana Kerja Sprint 2: Aplikasi Presensi Praktikum "Rawuh" (React Native + Firebase)
 
-PM: Ibrahim · Tim: Dhimas, Elang · Sprint: 2 · Versi 2.1 (lanjutan SRS v1.3)
+PM: Ibrahim · Tim: Dhimas, Elang · Sprint: 2 · Versi 2.2 (lanjutan SRS v1.3)
 
 ## 1. Pendahuluan
 
@@ -853,3 +853,4 @@ Aturan kerja: tugas selesai bila PR di-merge, `npx tsc --noEmit` lolos, diuji pe
 | 1.3 | Mencatat hasil Fase 1 layar asisten, AI agent boleh menjalankan git sampai PR draft, PR bertumpuk, risiko kode masuk `main` tanpa review |
 | 2.0 | **Sprint 2.** Integrasi Firebase Authentication (registrasi, login, logout, gate rute per peran, kode undangan asisten), Cloud Firestore dengan listener realtime sebagai sumber kebenaran, CRUD kelas praktikum dan sesi, presensi unik per sesi dengan validasi kode di rules, fitur Izin dengan klasifikasi AI dan keputusan asisten, Firebase Security Rules, penanganan AI error, offline, dan input tidak valid. Tim menjadi Dhimas dan Elang; file milik Ibrahim berpindah ke Dhimas; `theme/` berpindah ke Elang. Menambah FR-13 s.d. FR-31, NFR-07 s.d. NFR-12, dua alur demo, dan struktur file baru |
 | 2.1 | Project Manager Sprint 2 adalah Ibrahim; Dhimas dan Elang developer. Bagian 11 ditulis ulang: peran, tugas bernomor per orang (P-, D-, E-) dengan file, ketergantungan, dan kriteria selesai, tabel serah-terima Dhimas dan Elang, serta pembagian Fase 2. Kepemilikan \`docs/SRS.md\` pindah ke Ibrahim; persetujuan PM ditambahkan pada PR kontrak dan DoD. |
+| 2.2 | AI izin memakai model sentimen EDOM lokal dari modul praktikum (tanpa API, kunci, atau variabel lingkungan); saran diturunkan dari aturan kata kunci per kategori, sentimen disimpan sebagai informasi eksperimental, kontrak `AiResult`/`AiErrorCode` diganti, dan bagian 5 ditulis ulang dengan tabel uji model dan kriteria penerimaan. Kontrak store ditegaskan (aksi async `Result` tanpa lapisan kompatibilitas, `useSessionCode`, tanpa `Session.code`, mode in-memory meniru listener), offline dan timeout berlaku untuk semua aksi tulis, serta klarifikasi filter izin, kode undangan, gate registrasi, `changedOnly` di rules, props komponen, kepemilikan file, `.gitignore`, proteksi `main`, PR per tugas, dan rebuild development build |

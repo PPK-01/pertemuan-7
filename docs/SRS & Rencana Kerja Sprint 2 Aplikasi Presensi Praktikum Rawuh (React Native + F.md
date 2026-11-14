@@ -33,7 +33,7 @@ Dokumen ini mendefinisikan kebutuhan perangkat lunak Sprint 2 dan melanjutkan SR
 | Aspek | Keputusan | Alasan |
 | --- | --- | --- |
 | Backend | Firebase: Authentication (Email/Password) + Cloud Firestore, paket Spark | Sesuai kebutuhan sprint, tanpa biaya |
-| SDK | **Firebase JS SDK modular** (`firebase`), bukan `@react-native-firebase` | Berjalan di development build Android dan `expo start --web` (NFR-06), tanpa `google-services.json` atau config plugin native. Modul praktikum memakai `@react-native-firebase`; pilihan JS SDK ini dimintakan konfirmasi ke asisten praktikum (P-01) |
+| SDK | **Firebase JS SDK modular** (`firebase`), bukan `@react-native-firebase` | Berjalan di development build Android dan `expo start --web` (NFR-06), tanpa `google-services.json` atau config plugin native. Modul praktikum memakai `@react-native-firebase`; pilihan JS SDK ini sudah dikonfirmasi asisten praktikum (14 November 2026, P-01) |
 | Sesi login | `initializeAuth` + persistence `AsyncStorage` di native (`@react-native-async-storage/async-storage`); default SDK di web | Pengguna tetap login setelah aplikasi ditutup |
 | Realtime | `onSnapshot` per koleksi; dibuat setelah login, dilepas saat logout/keluar layar | Perubahan terlihat tanpa restart (NFR-08) |
 | Cache offline | Tidak mengandalkan cache persisten Firestore (di React Native JS SDK cache hanya di memori). Penulisan kritis (presensi, izin, ubah status sesi) **diblokir saat offline** | Penulisan Firestore saat offline hanya diantrikan dan tidak ditolak, sehingga UI bisa menggantung; data tetap permanen karena tersimpan di cloud |
@@ -50,7 +50,7 @@ Dependency baru dipasang sekali di Fase 0 oleh Dhimas: `firebase`, `@react-nativ
 ### 1.5 Asumsi dan Hal yang Masih Terbuka
 
 1. Ibrahim (developer pada Sprint 1) menjadi Project Manager Sprint 2 dan tidak menulis kode fitur; pengembangnya Dhimas dan Elang. File yang pada v1.3 dimiliki Ibrahim berpindah ke Dhimas.
-2. **Model EDOM bersifat eksperimental** dan dilatih dari komentar evaluasi dosen (EDOM), bukan dari alasan izin. Karena itu saran izin diturunkan dari aturan kata kunci, sentimen model hanya menjadi informasi tambahan, dan keputusan akhir tetap di asisten (bagian 5).
+2. **Model EDOM bersifat eksperimental** dan dilatih dari komentar evaluasi dosen (EDOM), bukan dari alasan izin. Karena itu saran izin diturunkan dari aturan kata kunci, sentimen model hanya menjadi informasi tambahan, dan keputusan akhir tetap di asisten (bagian 5). Pipeline ini sudah dikonfirmasi asisten praktikum (14 November 2026).
 3. Seorang praktikan terdaftar di satu kelas (A/B) yang berlaku untuk semua praktikum, seperti Sprint 1.
 4. Akun asisten dibuat lewat registrasi dengan **kode undangan asisten** yang disimpan di Firestore (tidak ada panel admin).
 
@@ -318,7 +318,7 @@ Fungsi validasi berupa fungsi murni di folder fitur masing-masing (mis. `feature
 
 AI **memberi saran**: menentukan satu kategori alasan, menurunkan saran diterima, ditolak, atau perlu dicek dari kategori itu, dan menyertakan sentimen teks sebagai informasi tambahan. Keputusan akhir selalu ditetapkan asisten (FR-26). Praktikan tidak melihat saran AI; ia hanya melihat status dan keputusan asisten.
 
-AI berjalan sepenuhnya di perangkat memakai bahan dari modul asisten praktikum: `ai/sentiment.js` (inferensi JavaScript murni, tanpa jaringan dan tanpa dependency native) dan `ai/model-edom.json` (LinearSVC, label `negatif`, `netral`, `positif`). Model dilatih dari komentar evaluasi dosen (EDOM) dan berstatus eksperimental (`research_baseline_edom_not_practicum_validated`), bukan pengklasifikasi izin. Karena itu **sentimen tidak dipakai langsung sebagai saran** (lihat uji di 5.5).
+AI berjalan sepenuhnya di perangkat memakai bahan dari modul asisten praktikum: `ai/sentiment.js` (inferensi JavaScript murni, tanpa jaringan dan tanpa dependency native) dan `ai/model-edom.json` (LinearSVC, label `negatif`, `netral`, `positif`). Model dilatih dari komentar evaluasi dosen (EDOM) dan berstatus eksperimental (`research_baseline_edom_not_practicum_validated`), bukan pengklasifikasi izin. Karena itu **sentimen tidak dipakai langsung sebagai saran** (lihat uji di 5.5). Pipeline sentimen EDOM (ditampilkan ke asisten sebagai informasi eksperimental) + kategori kata kunci (sumber saran) sudah dikonfirmasi asisten praktikum pada 14 November 2026.
 
 Dataset EDOM berlisensi MIT. File lisensi dan atribusi bawaan paket model (`EDOM-LICENSE.txt`, `EDOM-ATTRIBUTION.txt`, yang dirujuk `ai/README.md`) disertakan di folder `ai/` (pemilik: Dhimas).
 
@@ -735,7 +735,7 @@ Ibrahim adalah Project Manager Sprint 2 dan tidak menulis kode fitur. Pengembang
 
 | ID | Tugas | Kapan | Hasil |
 | --- | --- | --- | --- |
-| P-01 | Mengonfirmasi ke asisten praktikum pemakaian model EDOM (pipeline sentimen + kata kunci, bagian 5) dan pilihan Firebase JS SDK (1.4) | Hari pertama; paling lambat sebelum D-10 | Konfirmasi dicatat di SRS dan diteruskan ke Dhimas dan Elang |
+| P-01 | Mengonfirmasi ke asisten praktikum pemakaian model EDOM (pipeline sentimen + kata kunci, bagian 5) dan pilihan Firebase JS SDK (1.4) | **Selesai** 14 November 2026 | Keduanya diperbolehkan: sentimen EDOM tetap dipakai sebagai informasi eksperimental dan saran diambil dari kategori kata kunci; tim memakai Firebase JS SDK, bukan `@react-native-firebase` |
 | P-02 | Membuat satu issue per tugas (D-xx, E-xx) dengan label fase dan nomor FR | Awal Fase 0 | Papan tugas |
 | P-03 | Menyetujui PR kontrak: D-03, D-04, dan setiap perubahan `types`, tanda tangan store/hook, struktur Firestore, atau rules | Fase 0 dan seterusnya | PR kontrak disetujui |
 | P-04 | Memantau progres, memutuskan perubahan lingkup, dan menandai kebutuhan Should yang ditunda | Sepanjang sprint | Catatan di SRS |
@@ -789,7 +789,7 @@ Urutan Elang: E-01, E-02, E-03, lalu E-04, E-05, E-06, E-07, E-09, E-10, E-08, d
 | Service sesi dan kelas aktif (D-07) | Dhimas | Elang | Uji layar E-06 dan E-07 dengan data nyata |
 | Pipeline AI EDOM dan `retryAi` (D-10) | Dhimas | Elang | E-10 |
 | `useRekap` dengan izin (D-11) | Dhimas | Elang | E-08 |
-| Konfirmasi asisten praktikum soal model EDOM dan Firebase JS SDK (P-01) | Ibrahim | Dhimas, Elang | D-10 dan E-10 final |
+| Konfirmasi asisten praktikum soal model EDOM dan Firebase JS SDK (P-01, selesai 14 November 2026) | Ibrahim | Dhimas, Elang | D-10 dan E-10 final |
 
 Aturan kerja: tugas selesai bila PR di-merge, `npx tsc --noEmit` lolos, diuji pemiliknya di Android atau web, dan disetujui reviewer. Butuh perubahan di file orang lain: buka issue, jangan edit. Perubahan kontrak diumumkan di grup dan disetujui Ibrahim sebelum merge.
 
@@ -832,7 +832,7 @@ Aturan kerja: tugas selesai bila PR di-merge, `npx tsc --noEmit` lolos, diuji pe
 
 | Risiko | Mitigasi |
 | --- | --- |
-| Akurasi model EDOM rendah untuk teks izin (dilatih dari komentar evaluasi dosen) | Saran diturunkan dari aturan kata kunci, bukan sentimen; sentimen ditampilkan sebagai informasi "eksperimental"; tabel uji 5.5 menjadi kriteria penerimaan; keputusan akhir selalu di asisten; konfirmasi pendekatan ke asisten praktikum (P-01) |
+| Akurasi model EDOM rendah untuk teks izin (dilatih dari komentar evaluasi dosen) | Saran diturunkan dari aturan kata kunci, bukan sentimen; sentimen ditampilkan sebagai informasi "eksperimental"; tabel uji 5.5 menjadi kriteria penerimaan; keputusan akhir selalu di asisten; pendekatan ini sudah dikonfirmasi asisten praktikum (P-01, 14 November 2026) |
 | Elang menunggu Firebase | Kontrak store dengan implementasi in-memory di-merge lebih dulu; implementasi `services/` menggantikan tanpa mengubah layar |
 | Perubahan tipe `Kelas`/`Praktikum` dari union ke `string` memecah form Sprint 1 | Diumumkan di PR kontrak; Elang mengganti sumber pilihan ke `useKelasList()` |
 | Rules terlalu ketat (memblokir fitur) atau terlalu longgar | Uji 9 kasus; deploy hanya oleh Dhimas; review oleh Elang; perubahan rules diumumkan |
@@ -857,4 +857,4 @@ Aturan kerja: tugas selesai bila PR di-merge, `npx tsc --noEmit` lolos, diuji pe
 | 1.3 | Mencatat hasil Fase 1 layar asisten, AI agent boleh menjalankan git sampai PR draft, PR bertumpuk, risiko kode masuk `main` tanpa review |
 | 2.0 | **Sprint 2.** Integrasi Firebase Authentication (registrasi, login, logout, gate rute per peran, kode undangan asisten), Cloud Firestore dengan listener realtime sebagai sumber kebenaran, CRUD kelas praktikum dan sesi, presensi unik per sesi dengan validasi kode di rules, fitur Izin dengan klasifikasi AI dan keputusan asisten, Firebase Security Rules, penanganan AI error, offline, dan input tidak valid. Tim menjadi Dhimas dan Elang; file milik Ibrahim berpindah ke Dhimas; `theme/` berpindah ke Elang. Menambah FR-13 s.d. FR-31, NFR-07 s.d. NFR-12, dua alur demo, dan struktur file baru |
 | 2.1 | Project Manager Sprint 2 adalah Ibrahim; Dhimas dan Elang developer. Bagian 11 ditulis ulang: peran, tugas bernomor per orang (P-, D-, E-) dengan file, ketergantungan, dan kriteria selesai, tabel serah-terima Dhimas dan Elang, serta pembagian Fase 2. Kepemilikan \`docs/SRS.md\` pindah ke Ibrahim; persetujuan PM ditambahkan pada PR kontrak dan DoD. |
-| 2.2 | AI izin memakai model sentimen EDOM lokal dari modul praktikum (tanpa API, kunci, atau variabel lingkungan); saran diturunkan dari aturan kata kunci per kategori, sentimen disimpan sebagai informasi eksperimental, kontrak `AiResult`/`AiErrorCode` diganti, dan bagian 5 ditulis ulang dengan tabel uji model dan kriteria penerimaan. Kontrak store ditegaskan (aksi async `Result` tanpa lapisan kompatibilitas, `useSessionCode`, tanpa `Session.code`, mode in-memory meniru listener), offline dan timeout berlaku untuk semua aksi tulis, serta klarifikasi filter izin, kode undangan, gate registrasi, `changedOnly` di rules, props komponen, kepemilikan file, `.gitignore`, proteksi `main`, PR per tugas, dan rebuild development build |
+| 2.2 | AI izin memakai model sentimen EDOM lokal dari modul praktikum (tanpa API, kunci, atau variabel lingkungan); saran diturunkan dari aturan kata kunci per kategori, sentimen disimpan sebagai informasi eksperimental, kontrak `AiResult`/`AiErrorCode` diganti, dan bagian 5 ditulis ulang dengan tabel uji model dan kriteria penerimaan; keputusan AI dan pilihan Firebase JS SDK dikonfirmasi asisten praktikum (14 November 2026). Kontrak store ditegaskan (aksi async `Result` tanpa lapisan kompatibilitas, `useSessionCode`, tanpa `Session.code`, mode in-memory meniru listener), offline dan timeout berlaku untuk semua aksi tulis, serta klarifikasi filter izin, kode undangan, gate registrasi, `changedOnly` di rules, props komponen, kepemilikan file, `.gitignore`, proteksi `main`, PR per tugas, dan rebuild development build |

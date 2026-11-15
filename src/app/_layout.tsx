@@ -77,7 +77,7 @@ export default function RootLayout() {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background }}>
         <StatusBar style="light" />
-        <LoadingState message="Memeriksa sesi login Rawuh..." />
+        <LoadingState fullScreen label="Memeriksa sesi login Rawuh..." />
       </View>
     );
   }
@@ -85,7 +85,7 @@ export default function RootLayout() {
   return (
     <View style={{ flex: 1 }}>
       <StatusBar style="light" />
-      {!isOnline ? <OfflineBanner /> : null}
+      <OfflineBanner isOnline={isOnline} />
       <Stack
         screenOptions={{
           headerShown: false,

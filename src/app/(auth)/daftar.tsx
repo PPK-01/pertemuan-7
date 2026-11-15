@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Banner } from '@/components/ui/Banner';
 import { Button } from '@/components/ui/Button';
+import { PasswordField } from '@/components/ui/PasswordField';
 import { TextField } from '@/components/ui/TextField';
 import {
   validateConfirmPassword,
@@ -257,7 +258,7 @@ export default function DaftarScreen() {
                 />
               )}
 
-              <TextField
+              <PasswordField
                 label="Kata Sandi (Min. 8 Karakter)"
                 placeholder="Masukkan kata sandi baru"
                 value={password}
@@ -265,11 +266,11 @@ export default function DaftarScreen() {
                   setPassword(t);
                   if (passwordError) setPasswordError(undefined);
                 }}
-                secureTextEntry
+                autoComplete="new-password"
                 error={passwordError}
               />
 
-              <TextField
+              <PasswordField
                 label="Konfirmasi Kata Sandi"
                 placeholder="Ulangi kata sandi"
                 value={confirmPassword}
@@ -277,7 +278,7 @@ export default function DaftarScreen() {
                   setConfirmPassword(t);
                   if (confirmError) setConfirmError(undefined);
                 }}
-                secureTextEntry
+                autoComplete="new-password"
                 error={confirmError}
               />
             </View>

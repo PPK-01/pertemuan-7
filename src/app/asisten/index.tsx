@@ -9,7 +9,12 @@ import { IdentityCard } from '@/components/ui/IdentityCard';
 import { PRESSED_OPACITY } from '@/components/ui/pressable';
 import { Screen } from '@/components/ui/Screen';
 import { Tile } from '@/components/ui/Tile';
-import { SESSION_FILTER_LABEL, SESSION_FILTER_LIST } from '@/features/asisten/sessionFilterLabels';
+import {
+  SESSION_FILTER_EMPTY,
+  SESSION_FILTER_LABEL,
+  SESSION_FILTER_LIST,
+  SHOW_ALL_SESSIONS_LABEL,
+} from '@/features/asisten/sessionFilterLabels';
 import type { SessionFilter } from '@/features/asisten/sessionFilterLabels';
 import { SessionListItem } from '@/features/asisten/SessionListItem';
 import { useAppStore, useCurrentUser, useSessionsForUser } from '@/store/appStore';
@@ -59,6 +64,13 @@ export default function AsistenHomeScreen() {
 
   const openCreate = () => router.push('/asisten/buat');
 
+  const empty = SESSION_FILTER_EMPTY[filter];
+  const emptyMessage = 'message' in empty ? empty.message : undefined;
+  const emptyAction =
+    filter === 'all'
+      ? { label: 'Buat sesi', onPress: openCreate }
+      : { label: SHOW_ALL_SESSIONS_LABEL, onPress: () => setFilter('all') };
+
   return (
     <View style={styles.container}>
       <AppBar subtitle="Sesi" />
@@ -101,11 +113,7 @@ export default function AsistenHomeScreen() {
               </View>
             }
             ListEmptyComponent={
-              <EmptyState
-                title="Belum ada sesi"
-                message="Buat sesi untuk membuka presensi."
-                action={{ label: 'Buat sesi', onPress: openCreate }}
-              />
+              <EmptyState title={empty.title} message={emptyMessage} action={emptyAction} />
             }
           />
         </View>

@@ -5,37 +5,64 @@ import type { User } from '@/types';
 
 // In-Memory store untuk fallback
 let inMemoryUsers: User[] = [...dummyUsers];
+const fallbackPraktikanListeners = new Set<(users: User[]) => void>();
 
 export function setFallbackUsers(users: User[]) {
   inMemoryUsers = users;
+  const praktikanOnly = inMemoryUsers.filter((u) => u.role === 'praktikan');
+  fallbackPraktikanListeners.forEach((listener) => {
+    try {
+      listener(praktikanOnly);
+    } catch {
+      // Abaikan error di callback
+    }
+  });
 }
 
 export function getFallbackUsers(): User[] {
   return inMemoryUsers;
 }
 
-export async function getUser(uid: string): Promise<User | null> {
+export type GetUserProfileResult =
+  | { state: 'found'; user: User }
+  | { state: 'not_found' }
+  | { state: 'error'; error: unknown };
+
+/**
+ * Mengambil profil pengguna dari Firestore dengan membedakan
+ * status dokumen tidak ditemukan vs error jaringan/offline (A-2, FR-16).
+ */
+export async function getUserProfile(uid: string): Promise<GetUserProfileResult> {
   if (!isFirebaseReady || !db) {
-    return inMemoryUsers.find((u) => u.id === uid) ?? null;
+    const found = inMemoryUsers.find((u) => u.id === uid);
+    return found ? { state: 'found', user: found } : { state: 'not_found' };
   }
 
   try {
     const userDoc = await getDoc(doc(db, 'users', uid));
     if (!userDoc.exists()) {
-      return null;
+      return { state: 'not_found' };
     }
     const data = userDoc.data();
     return {
-      id: userDoc.id,
-      name: data.name,
-      email: data.email,
-      role: data.role,
-      kelas: data.kelas,
+      state: 'found',
+      user: {
+        id: userDoc.id,
+        name: data.name,
+        email: data.email,
+        role: data.role,
+        kelas: data.kelas,
+      },
     };
   } catch (error) {
-    console.error('[services/users] getUser error:', error);
-    return null;
+    console.error('[services/users] getUserProfile error:', error);
+    return { state: 'error', error };
   }
+}
+
+export async function getUser(uid: string): Promise<User | null> {
+  const res = await getUserProfile(uid);
+  return res.state === 'found' ? res.user : null;
 }
 
 export function listenPraktikan(
@@ -45,7 +72,10 @@ export function listenPraktikan(
   if (!isFirebaseReady || !db) {
     const praktikanOnly = inMemoryUsers.filter((u) => u.role === 'praktikan');
     onData(praktikanOnly);
-    return () => {};
+    fallbackPraktikanListeners.add(onData);
+    return () => {
+      fallbackPraktikanListeners.delete(onData);
+    };
   }
 
   const q = query(collection(db, 'users'), where('role', '==', 'praktikan'));

@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 
@@ -88,6 +89,9 @@ export default function AsistenIzinListScreen() {
               izin={item}
               praktikanName={getPraktikanName(item.userName)}
               sessionLabel={getIzinSessionLabel(sessionById.get(item.sessionId), sessionsLoading)}
+              onPress={() =>
+                router.push({ pathname: '/asisten/izin/[id]', params: { id: item.id } })
+              }
             />
           )}
           ItemSeparatorComponent={ListSeparator}

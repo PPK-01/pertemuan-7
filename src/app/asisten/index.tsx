@@ -4,8 +4,10 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppBar } from '@/components/ui/AppBar';
+import { Banner } from '@/components/ui/Banner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { IdentityCard } from '@/components/ui/IdentityCard';
+import { LoadingState } from '@/components/ui/LoadingState';
 import { PRESSED_OPACITY } from '@/components/ui/pressable';
 import { Screen } from '@/components/ui/Screen';
 import { Tile } from '@/components/ui/Tile';
@@ -18,7 +20,12 @@ import {
 import type { SessionFilter } from '@/features/asisten/sessionFilterLabels';
 import { KeluarSheet } from '@/features/asisten/KeluarSheet';
 import { SessionListItem } from '@/features/asisten/SessionListItem';
-import { useAppStore, useCurrentUser, useSessionsForUser } from '@/store/appStore';
+import {
+  useAppStore,
+  useCurrentUser,
+  useSessionsForUser,
+  useSyncState,
+} from '@/store/appStore';
 import { colors } from '@/theme/colors';
 import { layout, radius, spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
@@ -41,6 +48,7 @@ export default function AsistenHomeScreen() {
   const currentUser = useCurrentUser();
   const logout = useAppStore((state) => state.logout);
   const sessions = useSessionsForUser(currentUser?.id ?? '');
+  const sessionsSync = useSyncState('sessions');
 
   const [filter, setFilter] = useState<SessionFilter>('all');
   const [keluarVisible, setKeluarVisible] = useState(false);
@@ -87,6 +95,12 @@ export default function AsistenHomeScreen() {
     setKeluarVisible(false);
     setKeluarError(null);
   };
+
+  // 'idle' berarti listener belum dipasang. Data yang sudah ada tetap ditampilkan (FR-29),
+  // jadi status muat hanya menggantikan daftar yang masih kosong.
+  const loadingInitial =
+    (sessionsSync === 'idle' || sessionsSync === 'loading') && sessions.length === 0;
+  const syncError = sessionsSync === 'error';
 
   const empty = SESSION_FILTER_EMPTY[filter];
   const emptyMessage = 'message' in empty ? empty.message : undefined;
@@ -135,10 +149,18 @@ export default function AsistenHomeScreen() {
                     />
                   ))}
                 </View>
+
+                {syncError ? (
+                  <Banner tone="danger" message="Gagal memuat data. Periksa koneksi lalu coba lagi." />
+                ) : null}
               </View>
             }
             ListEmptyComponent={
-              <EmptyState title={empty.title} message={emptyMessage} action={emptyAction} />
+              loadingInitial ? (
+                <LoadingState />
+              ) : syncError && sessions.length === 0 ? null : (
+                <EmptyState title={empty.title} message={emptyMessage} action={emptyAction} />
+              )
             }
           />
         </View>

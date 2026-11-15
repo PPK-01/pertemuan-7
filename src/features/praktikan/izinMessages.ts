@@ -1,11 +1,7 @@
+import { IZIN_STATUS_LABEL } from '@/components/izin/IzinStatusBadge';
 import type { IzinStatus } from '@/types';
 
-export const IZIN_STATUS_LABEL: Record<IzinStatus, string> = {
-  pending_ai: 'Menunggu Analisis AI',
-  pending_review: 'Menunggu Pemeriksaan Asisten',
-  approved: 'Izin Disetujui',
-  rejected: 'Izin Ditolak',
-};
+export { IZIN_STATUS_LABEL };
 
 export const IZIN_STATUS_DESCRIPTION: Record<IzinStatus, string> = {
   pending_ai:

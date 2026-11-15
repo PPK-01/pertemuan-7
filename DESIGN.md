@@ -36,8 +36,19 @@ Sistem warna menggunakan Navy Pekat sebagai penanda resmi kampus dan Kuning Akse
 | `status.scheduled` | `{ bg: '#FFF1C2', text: '#5E3B00' }` | Sesi Dijadwalkan (titik kosong) | **8.86:1** thd bg |
 | `status.open` | `{ bg: '#DDF1E4', text: '#14603A' }` | Sesi Dibuka (titik penuh) | **6.43:1** thd bg |
 | `status.closed` | `{ bg: '#E3E7F2', text: '#3A4560' }` | Sesi Ditutup (kotak) | **7.72:1** thd bg |
+| `feedback.success` | `{ bg: '#DDF1E4', text: '#14603A' }` | Banner keberhasilan | **6.43:1** thd bg |
 | `feedback.danger` | `{ bg: '#FBE3E1', text: '#A32119' }` | Banner kesalahan / gagal presensi | **6.16:1** thd bg |
 | `feedback.info` | `{ bg: '#E0E8FB', text: '#1B2F8F' }` | Banner informasi umum | **9.25:1** thd bg |
+| `feedback.warning` | `{ bg: '#FFE8CC', text: '#7A3D00' }` | Banner peringatan, banner offline "Tidak ada koneksi", penanda beda dari saran AI, saran AI perlu dicek | **7.08:1** thd bg |
+| `izin.pending_ai` | `{ bg: '#E0E8FB', text: '#1B2F8F' }` | Izin sedang dianalisis, belum perlu tindakan ("Menunggu analisis") | **9.25:1** thd bg |
+| `izin.pending_review` | `{ bg: '#FFE8CC', text: '#7A3D00' }` | Izin perlu diperiksa asisten ("Perlu diperiksa" / "Menunggu pemeriksaan asisten") | **7.08:1** thd bg |
+| `izin.approved` | `{ bg: '#DDF1E4', text: '#14603A' }` | Izin disetujui asisten | **6.43:1** thd bg |
+| `izin.rejected` | `{ bg: '#FBE3E1', text: '#A32119' }` | Izin ditolak asisten | **6.16:1** thd bg |
+
+### Catatan Token Peringatan & Status Izin
+- Peringatan memakai oranye-amber gelap di atas krem oranye, bukan kuning aksen, sehingga aturan kuning aksen di bawah tetap terjaga. Rona ini sengaja lebih hangat dari `status.scheduled` agar tidak tertukar dengan sesi Dijadwalkan.
+- Banner offline tidak memiliki token khusus; memakai `feedback.warning` karena offline adalah kondisi yang perlu diperhatikan, bukan kesalahan pengguna.
+- `izin.*` merujuk langsung ke `feedback.*` (info, warning, success, danger) agar makna warna konsisten di seluruh aplikasi.
 
 ### Aturan Keras Kuning Aksen (`#FFC400`)
 - **BOLEH**: Digunakan di atas warna navy `#00144A` (sebagai ikon, teks kunci peran/kelas, atau tepi sel aktif pada panel navy), atau sebagai latar belakang dengan teks bertinta navy pekat `#00144A`.

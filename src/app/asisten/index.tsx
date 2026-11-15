@@ -16,6 +16,7 @@ import {
   SHOW_ALL_SESSIONS_LABEL,
 } from '@/features/asisten/sessionFilterLabels';
 import type { SessionFilter } from '@/features/asisten/sessionFilterLabels';
+import { KeluarSheet } from '@/features/asisten/KeluarSheet';
 import { SessionListItem } from '@/features/asisten/SessionListItem';
 import { useAppStore, useCurrentUser, useSessionsForUser } from '@/store/appStore';
 import { colors } from '@/theme/colors';
@@ -38,10 +39,13 @@ function ListSeparator() {
 export default function AsistenHomeScreen() {
   const insets = useSafeAreaInsets();
   const currentUser = useCurrentUser();
-  const resetIdentity = useAppStore((state) => state.resetIdentity);
+  const logout = useAppStore((state) => state.logout);
   const sessions = useSessionsForUser(currentUser?.id ?? '');
 
   const [filter, setFilter] = useState<SessionFilter>('all');
+  const [keluarVisible, setKeluarVisible] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [keluarError, setKeluarError] = useState<string | null>(null);
 
   const counts = useMemo<Record<SessionFilter, number>>(() => {
     const acc: Record<SessionFilter, number> = {
@@ -62,6 +66,27 @@ export default function AsistenHomeScreen() {
   );
 
   const openCreate = () => router.push('/asisten/buat');
+
+  // Navigasi ke layar Masuk diserahkan ke gate rute: logout() mengosongkan currentUser,
+  // lalu root layout mengganti rute ke (auth)/login (guard asisten ikut mengalihkan ke /).
+  const confirmKeluar = async () => {
+    setKeluarError(null);
+    setLoggingOut(true);
+    try {
+      await logout();
+      setKeluarVisible(false);
+    } catch {
+      // Sheet tetap terbuka agar pengguna tahu masih masuk dan bisa mencoba lagi.
+      setKeluarError('Gagal keluar. Coba lagi.');
+    } finally {
+      setLoggingOut(false);
+    }
+  };
+
+  const closeKeluar = () => {
+    setKeluarVisible(false);
+    setKeluarError(null);
+  };
 
   const empty = SESSION_FILTER_EMPTY[filter];
   const emptyMessage = 'message' in empty ? empty.message : undefined;
@@ -89,7 +114,8 @@ export default function AsistenHomeScreen() {
                     name={currentUser.name}
                     keyInfo="Asisten"
                     supportingInfo="Laboratorium Komputer"
-                    onGantiPeran={resetIdentity}
+                    actionLabel="Keluar"
+                    onAction={() => setKeluarVisible(true)}
                   />
                 ) : null}
 
@@ -135,6 +161,14 @@ export default function AsistenHomeScreen() {
           <Text style={styles.centerButtonLabel}>Buat sesi</Text>
         </Pressable>
       </View>
+
+      <KeluarSheet
+        visible={keluarVisible}
+        loading={loggingOut}
+        errorMessage={keluarError}
+        onClose={closeKeluar}
+        onConfirm={confirmKeluar}
+      />
     </View>
   );
 }

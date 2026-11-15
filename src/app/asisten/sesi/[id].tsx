@@ -25,6 +25,9 @@ type Feedback = { id: number; tone: 'success' | 'danger' | 'info'; message: stri
 
 const STATUS_CHANGED_MESSAGE = 'Status sesi sudah berubah. Tampilan sudah diperbarui.';
 
+// Deep link langsung ke layar ini tidak punya riwayat; tanpa fallback tombol kembali diam atau keluar.
+const goBackToList = () => (router.canGoBack() ? router.back() : router.replace('/asisten'));
+
 const SUCCESS_MESSAGE: Record<StatusAction, string> = {
   open: 'Sesi dibuka',
   close: 'Sesi ditutup',
@@ -61,12 +64,12 @@ export default function AsistenDetailSesiScreen() {
   if (!session) {
     return (
       <View style={styles.container}>
-        <AppBar subtitle="Detail sesi" canGoBack onGoBack={() => router.back()} />
+        <AppBar subtitle="Detail sesi" canGoBack onGoBack={goBackToList} />
         <Screen edges={['left', 'right', 'bottom']}>
           <EmptyState
             title="Sesi tidak ditemukan"
             message="Sesi mungkin sudah dihapus atau tautan tidak valid."
-            action={{ label: 'Kembali ke daftar sesi', onPress: () => router.back() }}
+            action={{ label: 'Kembali ke daftar sesi', onPress: goBackToList }}
           />
         </Screen>
       </View>
@@ -100,7 +103,7 @@ export default function AsistenDetailSesiScreen() {
 
   return (
     <View style={styles.container}>
-      <AppBar subtitle="Detail sesi" canGoBack onGoBack={() => router.back()} />
+      <AppBar subtitle="Detail sesi" canGoBack onGoBack={goBackToList} />
       <Screen edges={['left', 'right', 'bottom']}>
         <View style={styles.page}>
           {feedback ? <Banner key={feedback.id} tone={feedback.tone} message={feedback.message} /> : null}

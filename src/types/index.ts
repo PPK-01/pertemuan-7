@@ -84,21 +84,22 @@ export type Attendance = {
 
 // ===== Analisis AI & Review Izin =====
 
-export type AiErrorCode =
-  | 'NOT_CONFIGURED'
-  | 'NETWORK'
-  | 'TIMEOUT'
-  | 'HTTP_ERROR'
-  | 'RATE_LIMIT'
-  | 'INVALID_RESPONSE';
+export type AiErrorCode = 'MODEL_ERROR';
 
 export type AiResult =
   | {
       state: 'success';
-      keputusan: 'diterima' | 'ditolak';
       kategori: IzinKategori;
-      alasan: string; // penjelasan singkat AI
+      saran: 'diterima' | 'ditolak' | 'perlu_cek';
+      sentimen: 'positif' | 'netral' | 'negatif' | null;
+      skor: Record<string, number> | null;
+      penjelasan: string;
+      eksperimental: true;
       at: string;
+      /** @deprecated Sesuai SRS v2.2 §3.2 digantikan oleh saran. Dipertahankan untuk transisi E-10. */
+      keputusan?: 'diterima' | 'ditolak';
+      /** @deprecated Sesuai SRS v2.2 §3.2 digantikan oleh penjelasan. Dipertahankan untuk transisi E-10. */
+      alasan?: string;
     }
   | {
       state: 'failed';

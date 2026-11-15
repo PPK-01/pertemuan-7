@@ -32,6 +32,23 @@ import { colors } from '@/theme/colors';
 import { layout, radius, spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 
+// Ukuran tombol bulat "Buat sesi" di bar bawah; tidak ada padanan token.
+const CENTER_BUTTON_SIZE = 54;
+// Seberapa jauh tombol bulat menonjol ke atas bar bawah.
+const CENTER_BUTTON_LIFT = 24;
+// Cincin warna surface yang memisahkan tombol bulat dari daftar di belakangnya.
+const CENTER_BUTTON_RING = 3.5;
+// Label tombol bulat lebih rapat dari typography.caption agar muat di bar bawah.
+const CENTER_LABEL_LINE_HEIGHT = 14;
+// Jarak label ke lingkaran; spacing.xs (4) terlalu renggang untuk bar bawah.
+const CENTER_LABEL_GAP = 2;
+// Garis pemisah bar bawah setebal 1 seperti border komponen lain, bukan hairline.
+const BAR_BORDER_WIDTH = 1;
+// Ikon plus digambar dari dua garis: kotak 20, garis 14 x 2,5 agar seimbang di lingkaran 54.
+const PLUS_ICON_SIZE = 20;
+const PLUS_STROKE_LENGTH = 14;
+const PLUS_STROKE_WIDTH = 2.5;
+
 function PlusIcon() {
   return (
     <View style={styles.plusBox}>
@@ -225,7 +242,8 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
-    paddingBottom: spacing.xxl + 40,
+    // Ruang tambahan agar item terakhir tidak tertutup tombol bulat yang menonjol.
+    paddingBottom: spacing.xxl + CENTER_BUTTON_LIFT + spacing.lg,
   },
   headerBlock: {
     gap: spacing.lg,
@@ -240,7 +258,7 @@ const styles = StyleSheet.create({
   },
   bottomBar: {
     backgroundColor: colors.surface,
-    borderTopWidth: 1,
+    borderTopWidth: BAR_BORDER_WIDTH,
     borderTopColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
@@ -249,46 +267,46 @@ const styles = StyleSheet.create({
   centerButtonWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: -24,
+    marginTop: -CENTER_BUTTON_LIFT,
     minHeight: layout.minTouch,
     minWidth: layout.minTouch,
   },
   centerButtonCircle: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: CENTER_BUTTON_SIZE,
+    height: CENTER_BUTTON_SIZE,
+    borderRadius: radius.full,
     backgroundColor: colors.primary,
-    borderWidth: 3.5,
+    borderWidth: CENTER_BUTTON_RING,
     borderColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   centerButtonLabel: {
     fontSize: typography.caption.fontSize,
-    lineHeight: 14,
-    fontWeight: '600',
+    lineHeight: CENTER_LABEL_LINE_HEIGHT,
+    fontWeight: typography.label.fontWeight,
     color: colors.primary,
-    marginTop: 2,
+    marginTop: CENTER_LABEL_GAP,
   },
   plusBox: {
-    width: 20,
-    height: 20,
+    width: PLUS_ICON_SIZE,
+    height: PLUS_ICON_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
   plusHorizontal: {
     position: 'absolute',
-    width: 14,
-    height: 2.5,
+    width: PLUS_STROKE_LENGTH,
+    height: PLUS_STROKE_WIDTH,
     backgroundColor: colors.accent,
-    borderRadius: 1,
+    borderRadius: radius.full,
   },
   plusVertical: {
     position: 'absolute',
-    width: 2.5,
-    height: 14,
+    width: PLUS_STROKE_WIDTH,
+    height: PLUS_STROKE_LENGTH,
     backgroundColor: colors.accent,
-    borderRadius: 1,
+    borderRadius: radius.full,
   },
 });

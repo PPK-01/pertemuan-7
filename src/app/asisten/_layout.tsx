@@ -1,14 +1,13 @@
 import { Redirect, Stack } from 'expo-router';
 
-import { useAppStore } from '@/store/appStore';
+import { useCurrentUser } from '@/store/appStore';
 import { colors } from '@/theme/colors';
 
 export default function AsistenLayout() {
-  const role = useAppStore((state) => state.role);
-  const currentUserId = useAppStore((state) => state.currentUserId);
+  const currentUser = useCurrentUser();
 
-  // Juga menangani "Ganti peran": resetIdentity() mengosongkan identitas lalu guard ini mengarahkan ke /.
-  if (role !== 'asisten' || !currentUserId) {
+  // Juga menangani "Keluar": logout() mengosongkan currentUser lalu guard ini mengarahkan ke /.
+  if (currentUser?.role !== 'asisten') {
     return <Redirect href="/" />;
   }
 

@@ -1,7 +1,8 @@
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { colors } from '@/theme/colors';
+import { radius, spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 import type { Kelas } from '@/types';
 
@@ -41,10 +42,24 @@ export function StatusActionSheet({
           ? `Setelah dibuka, praktikan kelas ${kelas} bisa presensi memakai kode sesi.`
           : 'Praktikan tidak bisa presensi lagi setelah sesi ditutup.'}
       </Text>
+      {/* Banner belum punya tone warning; bingkai dan warna mengikuti Banner, teks memakai label agar menonjol. */}
+      {isOpen ? null : (
+        <View style={styles.warning}>
+          <Text style={styles.warningText}>Sesi yang ditutup tidak bisa dibuka kembali.</Text>
+        </View>
+      )}
     </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
   body: { ...typography.body, color: colors.text },
+  warning: {
+    backgroundColor: colors.feedback.warning.bg,
+    borderColor: colors.feedback.warning.text,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing.md,
+  },
+  warningText: { ...typography.label, color: colors.feedback.warning.text },
 });

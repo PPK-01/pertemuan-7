@@ -12,9 +12,21 @@ import { db, isFirebaseReady } from './firebase';
 import { connectionService } from './connection';
 import { classifyIzin } from './ai';
 import { mapFirebaseError } from './errors';
+import { dummyIzin } from '@/data/dummy';
 import type { AiResult, Izin, Result, Session, User } from '@/types';
 
-let inMemoryIzin: Izin[] = [];
+let inMemoryIzin: Izin[] = [...dummyIzin];
+const fallbackIzinListeners = new Set<() => void>();
+
+function notifyFallbackIzinListeners() {
+  fallbackIzinListeners.forEach((listener) => {
+    try {
+      listener();
+    } catch {
+      // Abaikan error di callback
+    }
+  });
+}
 
 export function listenIzin(
   user: User,
@@ -22,12 +34,18 @@ export function listenIzin(
   onError?: (err: Error) => void,
 ): () => void {
   if (!isFirebaseReady || !db) {
-    const list =
-      user.role === 'asisten'
-        ? inMemoryIzin
-        : inMemoryIzin.filter((i) => i.userId === user.id);
-    onData(list);
-    return () => {};
+    const notify = () => {
+      const list =
+        user.role === 'asisten'
+          ? inMemoryIzin
+          : inMemoryIzin.filter((i) => i.userId === user.id);
+      onData(list);
+    };
+    notify();
+    fallbackIzinListeners.add(notify);
+    return () => {
+      fallbackIzinListeners.delete(notify);
+    };
   }
 
   const collRef = collection(db, 'izin');
@@ -73,7 +91,7 @@ export async function submitIzin(
   session: Session,
 ): Promise<Result<Izin>> {
   if (!connectionService.isConnected) {
-    return { ok: false, code: 'NO_CONNECTION', message: 'Tidak ada koneksi. Pengajuan izin memerlukan internet' };
+    return { ok: false, code: 'NO_CONNECTION', message: 'Tidak ada koneksi internet. Pengajuan izin memerlukan jaringan' };
   }
 
   const trimmedAlasan = alasan.trim();
@@ -99,19 +117,16 @@ export async function submitIzin(
   if (!isFirebaseReady || !db) {
     // Mode Fallback
     inMemoryIzin = [...inMemoryIzin.filter((i) => i.id !== izinId), initialIzin];
+    notifyFallbackIzinListeners();
 
     // Trigger AI secara asinkron
-    classifyIzin({
-      praktikum: session.praktikum,
-      topik: session.topik,
-      tanggalSesi: session.startAt,
-      alasan: trimmedAlasan,
-    }).then((aiResult) => {
+    classifyIzin(trimmedAlasan).then((aiResult) => {
       inMemoryIzin = inMemoryIzin.map((i) =>
         i.id === izinId
           ? { ...i, status: 'pending_review', ai: aiResult, updatedAt: new Date().toISOString() }
           : i,
       );
+      notifyFallbackIzinListeners();
     });
 
     return { ok: true, data: initialIzin };
@@ -132,12 +147,7 @@ export async function submitIzin(
     });
 
     // Panggil AI (FR-23)
-    classifyIzin({
-      praktikum: session.praktikum,
-      topik: session.topik,
-      tanggalSesi: session.startAt,
-      alasan: trimmedAlasan,
-    }).then(async (aiResult) => {
+    classifyIzin(trimmedAlasan).then(async (aiResult) => {
       try {
         await updateDoc(docRef, {
           status: 'pending_review',
@@ -163,6 +173,7 @@ export async function saveAiResult(izinId: string, aiResult: AiResult): Promise<
         ? { ...i, status: 'pending_review', ai: aiResult, updatedAt: new Date().toISOString() }
         : i,
     );
+    notifyFallbackIzinListeners();
     return { ok: true, data: undefined };
   }
 
@@ -203,6 +214,7 @@ export async function reviewIzin(
         updatedAt: now,
       };
     });
+    notifyFallbackIzinListeners();
     return { ok: true, data: undefined };
   }
 

@@ -16,6 +16,21 @@ import { createId, createSessionCode } from '@/utils/id';
 
 let inMemorySessions: Session[] = [...dummySessions];
 let inMemoryCodes: Record<string, string> = { ...dummySessionCodes };
+const fallbackSessionListeners = new Set<() => void>();
+
+function notifyFallbackSessionListeners() {
+  fallbackSessionListeners.forEach((listener) => {
+    try {
+      listener();
+    } catch {
+      // Abaikan error di callback
+    }
+  });
+}
+
+export function getInMemorySessions(): Session[] {
+  return inMemorySessions;
+}
 
 export function listenSessions(
   user: User,
@@ -23,12 +38,18 @@ export function listenSessions(
   onError?: (err: Error) => void,
 ): () => void {
   if (!isFirebaseReady || !db) {
-    const filtered =
-      user.role === 'asisten'
-        ? inMemorySessions
-        : inMemorySessions.filter((s) => s.kelas === user.kelas);
-    onData(filtered);
-    return () => {};
+    const notify = () => {
+      const filtered =
+        user.role === 'asisten'
+          ? inMemorySessions
+          : inMemorySessions.filter((s) => s.kelas === user.kelas);
+      onData(filtered);
+    };
+    notify();
+    fallbackSessionListeners.add(notify);
+    return () => {
+      fallbackSessionListeners.delete(notify);
+    };
   }
 
   const sessionsRef = collection(db, 'sessions');
@@ -67,18 +88,30 @@ export function listenSessions(
   return unsubscribe;
 }
 
-export async function createSession(input: CreateSessionInput): Promise<Result<Session>> {
-  const sessionId = createId('ses');
+export async function createSession(
+  input: CreateSessionInput & { id?: string },
+): Promise<Result<Session>> {
+  // C-2: Sesi dibuat dengan id final Firestore yang konsisten sejak awal
+  const sessionId = input.id ?? createId('ses');
   const code = createSessionCode();
 
   if (!isFirebaseReady || !db) {
     const newSession: Session = {
       id: sessionId,
-      ...input,
+      praktikum: input.praktikum,
+      kelas: input.kelas,
+      topik: input.topik,
+      ruang: input.ruang,
+      startAt: input.startAt,
+      endAt: input.endAt,
       status: 'scheduled',
+      createdBy: input.createdBy,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
     inMemorySessions = [...inMemorySessions, newSession];
     inMemoryCodes[sessionId] = code;
+    notifyFallbackSessionListeners();
     return { ok: true, data: newSession };
   }
 
@@ -87,7 +120,13 @@ export async function createSession(input: CreateSessionInput): Promise<Result<S
 
     const sessionRef = doc(db, 'sessions', sessionId);
     batch.set(sessionRef, {
-      ...input,
+      praktikum: input.praktikum,
+      kelas: input.kelas,
+      topik: input.topik,
+      ruang: input.ruang,
+      startAt: input.startAt,
+      endAt: input.endAt,
+      createdBy: input.createdBy,
       status: 'scheduled',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -100,7 +139,13 @@ export async function createSession(input: CreateSessionInput): Promise<Result<S
 
     const created: Session = {
       id: sessionId,
-      ...input,
+      praktikum: input.praktikum,
+      kelas: input.kelas,
+      topik: input.topik,
+      ruang: input.ruang,
+      startAt: input.startAt,
+      endAt: input.endAt,
+      createdBy: input.createdBy,
       status: 'scheduled',
     };
     return { ok: true, data: created };
@@ -115,21 +160,23 @@ export async function updateSession(
   patch: Partial<Session>,
 ): Promise<Result> {
   if (!isFirebaseReady || !db) {
-    inMemorySessions = inMemorySessions.map((s) => (s.id === id ? { ...s, ...patch } : s));
+    inMemorySessions = inMemorySessions.map((s) => {
+      if (s.id !== id) return s;
+      return { ...s, ...patch, updatedAt: new Date().toISOString() };
+    });
+    notifyFallbackSessionListeners();
     return { ok: true, data: undefined };
   }
 
   try {
     const sessionRef = doc(db, 'sessions', id);
-    const cleanPatch: Record<string, unknown> = {
-      ...patch,
-      updatedAt: serverTimestamp(),
-    };
-    delete cleanPatch.id;
-    delete cleanPatch.createdAt;
-
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id: _id, code: _code, ...cleanPatch } = patch;
     const batch = writeBatch(db);
-    batch.update(sessionRef, cleanPatch);
+    batch.update(sessionRef, {
+      ...cleanPatch,
+      updatedAt: serverTimestamp(),
+    });
     await batch.commit();
 
     return { ok: true, data: undefined };
@@ -149,9 +196,10 @@ export async function setStatus(
     inMemorySessions = inMemorySessions.map((s) => {
       if (s.id !== id) return s;
       return status === 'open'
-        ? { ...s, status: 'open', openedAt: now }
-        : { ...s, status: 'closed', closedAt: now };
+        ? { ...s, status: 'open', openedAt: now, updatedAt: now }
+        : { ...s, status: 'closed', closedAt: now, updatedAt: now };
     });
+    notifyFallbackSessionListeners();
     return { ok: true, data: undefined };
   }
 
@@ -183,6 +231,7 @@ export async function deleteSession(id: string): Promise<Result> {
   if (!isFirebaseReady || !db) {
     inMemorySessions = inMemorySessions.filter((s) => s.id !== id);
     delete inMemoryCodes[id];
+    notifyFallbackSessionListeners();
     return { ok: true, data: undefined };
   }
 

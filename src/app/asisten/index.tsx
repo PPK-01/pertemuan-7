@@ -18,11 +18,13 @@ import {
   SHOW_ALL_SESSIONS_LABEL,
 } from '@/features/asisten/sessionFilterLabels';
 import type { SessionFilter } from '@/features/asisten/sessionFilterLabels';
+import { IzinShortcut } from '@/features/asisten/IzinShortcut';
 import { KeluarSheet } from '@/features/asisten/KeluarSheet';
 import { SessionListItem } from '@/features/asisten/SessionListItem';
 import {
   useAppStore,
   useCurrentUser,
+  useIzinForAsisten,
   useSessionsForUser,
   useSyncState,
 } from '@/store/appStore';
@@ -49,6 +51,8 @@ export default function AsistenHomeScreen() {
   const logout = useAppStore((state) => state.logout);
   const sessions = useSessionsForUser(currentUser?.id ?? '');
   const sessionsSync = useSyncState('sessions');
+  const izinList = useIzinForAsisten();
+  const izinSync = useSyncState('izin');
 
   const [filter, setFilter] = useState<SessionFilter>('all');
   const [keluarVisible, setKeluarVisible] = useState(false);
@@ -67,6 +71,13 @@ export default function AsistenHomeScreen() {
     }
     return acc;
   }, [sessions]);
+
+  // FR-25: "Perlu diperiksa" mencakup pending_ai dan pending_review.
+  const pendingIzinCount = useMemo(
+    () =>
+      izinList.filter((i) => i.status === 'pending_ai' || i.status === 'pending_review').length,
+    [izinList],
+  );
 
   const filteredSessions = useMemo(
     () => (filter === 'all' ? sessions : sessions.filter((s) => s.status === filter)),
@@ -132,6 +143,14 @@ export default function AsistenHomeScreen() {
                     onAction={() => setKeluarVisible(true)}
                   />
                 ) : null}
+
+                <IzinShortcut
+                  pendingCount={pendingIzinCount}
+                  countStatus={
+                    izinSync === 'error' ? 'error' : izinSync === 'ready' ? 'ready' : 'loading'
+                  }
+                  onPress={() => router.push('/asisten/izin')}
+                />
 
                 <View
                   role="radiogroup"

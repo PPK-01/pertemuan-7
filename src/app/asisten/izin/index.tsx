@@ -11,8 +11,10 @@ import { Screen } from '@/components/ui/Screen';
 import { goBackToList } from '@/features/asisten/goBackToList';
 import {
   DEFAULT_IZIN_FILTER,
+  IZIN_FILTER_EMPTY,
   IZIN_FILTER_LABEL,
   IZIN_FILTER_LIST,
+  SHOW_ALL_IZIN_LABEL,
   izinFilterOf,
 } from '@/features/asisten/izinFilterLabels';
 import type { IzinFilter } from '@/features/asisten/izinFilterLabels';
@@ -71,6 +73,9 @@ export default function AsistenIzinListScreen() {
   const loadingInitial = (izinSync === 'idle' || izinSync === 'loading') && izinList.length === 0;
   const syncError = izinSync === 'error';
 
+  const emptyAction =
+    filter === 'all' ? undefined : { label: SHOW_ALL_IZIN_LABEL, onPress: () => setFilter('all') };
+
   return (
     <View style={styles.container}>
       <AppBar subtitle="Izin" canGoBack onGoBack={goBackToList} />
@@ -109,8 +114,8 @@ export default function AsistenIzinListScreen() {
           ListEmptyComponent={
             loadingInitial ? (
               <LoadingState />
-            ) : syncError ? null : (
-              <EmptyState title="Belum ada pengajuan izin" />
+            ) : syncError && izinList.length === 0 ? null : (
+              <EmptyState title={IZIN_FILTER_EMPTY[filter]} action={emptyAction} />
             )
           }
         />

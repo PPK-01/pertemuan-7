@@ -24,3 +24,13 @@ export function izinFilterOf(status: IzinStatus): Exclude<IzinFilter, 'all'> {
   if (status === 'approved' || status === 'rejected') return status;
   return 'pending';
 }
+
+// Pesan daftar kosong per filter; tidak ada teksnya di SRS v2.2.
+export const IZIN_FILTER_EMPTY = {
+  pending: 'Tidak ada izin yang perlu diperiksa',
+  approved: 'Belum ada izin yang disetujui',
+  rejected: 'Belum ada izin yang ditolak',
+  all: 'Belum ada pengajuan izin',
+} as const satisfies Record<IzinFilter, string>;
+
+export const SHOW_ALL_IZIN_LABEL = 'Lihat semua izin';

@@ -38,9 +38,8 @@ function ListSeparator() {
 export default function AsistenHomeScreen() {
   const insets = useSafeAreaInsets();
   const currentUser = useCurrentUser();
-  const currentUserId = useAppStore((state) => state.currentUserId);
   const resetIdentity = useAppStore((state) => state.resetIdentity);
-  const sessions = useSessionsForUser(currentUserId ?? '');
+  const sessions = useSessionsForUser(currentUser?.id ?? '');
 
   const [filter, setFilter] = useState<SessionFilter>('all');
 
@@ -88,7 +87,7 @@ export default function AsistenHomeScreen() {
                 {currentUser ? (
                   <IdentityCard
                     name={currentUser.name}
-                    keyInfo="Asisten Lab"
+                    keyInfo="Asisten"
                     supportingInfo="Laboratorium Komputer"
                     onGantiPeran={resetIdentity}
                   />

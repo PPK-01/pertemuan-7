@@ -9,14 +9,18 @@ import { IdentityCard } from '@/components/ui/IdentityCard';
 import { PRESSED_OPACITY } from '@/components/ui/pressable';
 import { Screen } from '@/components/ui/Screen';
 import { Tile } from '@/components/ui/Tile';
+import {
+  SESSION_FILTER_EMPTY,
+  SESSION_FILTER_LABEL,
+  SESSION_FILTER_LIST,
+  SHOW_ALL_SESSIONS_LABEL,
+} from '@/features/asisten/sessionFilterLabels';
+import type { SessionFilter } from '@/features/asisten/sessionFilterLabels';
 import { SessionListItem } from '@/features/asisten/SessionListItem';
 import { useAppStore, useCurrentUser, useSessionsForUser } from '@/store/appStore';
 import { colors } from '@/theme/colors';
 import { layout, radius, spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
-import type { Session, SessionStatus } from '@/types';
-
-type StatusFilter = SessionStatus | 'all';
 
 function PlusIcon() {
   return (
@@ -38,10 +42,10 @@ export default function AsistenHomeScreen() {
   const resetIdentity = useAppStore((state) => state.resetIdentity);
   const sessions = useSessionsForUser(currentUserId ?? '');
 
-  const [filter, setFilter] = useState<StatusFilter>('all');
+  const [filter, setFilter] = useState<SessionFilter>('all');
 
-  const counts = useMemo<Record<StatusFilter, number>>(() => {
-    const acc: Record<StatusFilter, number> = {
+  const counts = useMemo<Record<SessionFilter, number>>(() => {
+    const acc: Record<SessionFilter, number> = {
       all: sessions.length,
       scheduled: 0,
       open: 0,
@@ -59,6 +63,13 @@ export default function AsistenHomeScreen() {
   );
 
   const openCreate = () => router.push('/asisten/buat');
+
+  const empty = SESSION_FILTER_EMPTY[filter];
+  const emptyMessage = 'message' in empty ? empty.message : undefined;
+  const emptyAction =
+    filter === 'all'
+      ? { label: 'Buat sesi', onPress: openCreate }
+      : { label: SHOW_ALL_SESSIONS_LABEL, onPress: () => setFilter('all') };
 
   return (
     <View style={styles.container}>
@@ -88,43 +99,21 @@ export default function AsistenHomeScreen() {
                   aria-label="Filter status sesi"
                   style={styles.tilesGrid}
                 >
-                  <Tile
-                    label="Semua"
-                    count={counts.all}
-                    iconType="all"
-                    selected={filter === 'all'}
-                    onPress={() => setFilter('all')}
-                  />
-                  <Tile
-                    label="Dijadwalkan"
-                    count={counts.scheduled}
-                    iconType="scheduled"
-                    selected={filter === 'scheduled'}
-                    onPress={() => setFilter('scheduled')}
-                  />
-                  <Tile
-                    label="Dibuka"
-                    count={counts.open}
-                    iconType="open"
-                    selected={filter === 'open'}
-                    onPress={() => setFilter('open')}
-                  />
-                  <Tile
-                    label="Ditutup"
-                    count={counts.closed}
-                    iconType="closed"
-                    selected={filter === 'closed'}
-                    onPress={() => setFilter('closed')}
-                  />
+                  {SESSION_FILTER_LIST.map((item) => (
+                    <Tile
+                      key={item}
+                      label={SESSION_FILTER_LABEL[item]}
+                      count={counts[item]}
+                      iconType={item}
+                      selected={filter === item}
+                      onPress={() => setFilter(item)}
+                    />
+                  ))}
                 </View>
               </View>
             }
             ListEmptyComponent={
-              <EmptyState
-                title="Belum ada sesi"
-                message="Buat sesi untuk membuka presensi."
-                action={{ label: 'Buat sesi', onPress: openCreate }}
-              />
+              <EmptyState title={empty.title} message={emptyMessage} action={emptyAction} />
             }
           />
         </View>

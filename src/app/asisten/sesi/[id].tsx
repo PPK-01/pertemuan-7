@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { CodeDisplay } from '@/components/session/CodeDisplay';
@@ -13,12 +13,20 @@ import { Screen } from '@/components/ui/Screen';
 import { RekapList } from '@/features/asisten/RekapList';
 import { StatusActionSheet } from '@/features/asisten/StatusActionSheet';
 import type { StatusAction } from '@/features/asisten/StatusActionSheet';
+import { readStatusActionResult } from '@/features/asisten/statusActionResult';
 import { useAppStore, useRekap, useSessionById } from '@/store/appStore';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
+import type { SessionStatus } from '@/types';
 
-type Feedback = { tone: 'success' | 'danger'; message: string };
+// id membuat Banner di-mount ulang agar pesan yang sama tetap diumumkan pembaca layar.
+type Feedback = { id: number; tone: 'success' | 'danger' | 'info'; message: string };
+
+const STATUS_CHANGED_MESSAGE = 'Status sesi sudah berubah. Tampilan sudah diperbarui.';
+
+// Deep link langsung ke layar ini tidak punya riwayat; tanpa fallback tombol kembali diam atau keluar.
+const goBackToList = () => (router.canGoBack() ? router.back() : router.replace('/asisten'));
 
 const SUCCESS_MESSAGE: Record<StatusAction, string> = {
   open: 'Sesi dibuka',
@@ -36,17 +44,32 @@ export default function AsistenDetailSesiScreen() {
 
   const [sheetVisible, setSheetVisible] = useState(false);
   const [sheetAction, setSheetAction] = useState<StatusAction>('open');
-  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  // Status saat sheet dibuka; null bila sheet tidak sedang menunggu konfirmasi.
+  const [sheetFromStatus, setSheetFromStatus] = useState<SessionStatus | null>(null);
+  const [feedback, setFeedbackState] = useState<Feedback | null>(null);
+  const setFeedback = (next: Omit<Feedback, 'id'>) =>
+    setFeedbackState((prev) => ({ ...next, id: (prev?.id ?? 0) + 1 }));
+
+  const currentStatus = session?.status ?? null;
+
+  // Status berubah dari luar (asisten lain atau listener realtime) selagi sheet terbuka:
+  // aksi yang ditawarkan sheet sudah tidak berlaku, jadi sheet ditutup dan asisten diberi tahu.
+  useEffect(() => {
+    if (sheetFromStatus === null || currentStatus === sheetFromStatus) return;
+    setSheetVisible(false);
+    setSheetFromStatus(null);
+    setFeedback({ tone: 'info', message: STATUS_CHANGED_MESSAGE });
+  }, [currentStatus, sheetFromStatus]);
 
   if (!session) {
     return (
       <View style={styles.container}>
-        <AppBar subtitle="Detail sesi" canGoBack onGoBack={() => router.back()} />
+        <AppBar subtitle="Detail sesi" canGoBack onGoBack={goBackToList} />
         <Screen edges={['left', 'right', 'bottom']}>
           <EmptyState
             title="Sesi tidak ditemukan"
             message="Sesi mungkin sudah dihapus atau tautan tidak valid."
-            action={{ label: 'Kembali ke daftar sesi', onPress: () => router.back() }}
+            action={{ label: 'Kembali ke daftar sesi', onPress: goBackToList }}
           />
         </Screen>
       </View>
@@ -55,32 +78,35 @@ export default function AsistenDetailSesiScreen() {
 
   const showSheet = (action: StatusAction) => {
     setSheetAction(action);
+    setSheetFromStatus(session.status);
     setSheetVisible(true);
   };
 
-  const handleConfirm = () => {
+  const closeSheet = () => {
     setSheetVisible(false);
-    const actionFn = sheetAction === 'open' ? openSession : closeSession;
-    const ok = actionFn(session.id);
-    if (ok) {
-      setFeedback({ tone: 'success', message: SUCCESS_MESSAGE[sheetAction] });
+    setSheetFromStatus(null);
+  };
+
+  const handleConfirm = async () => {
+    const action = sheetAction;
+    closeSheet();
+    const actionFn = action === 'open' ? openSession : closeSession;
+    const outcome = await readStatusActionResult(actionFn(session.id));
+    if (outcome.kind === 'success') {
+      setFeedback({ tone: 'success', message: SUCCESS_MESSAGE[action] });
+    } else if (outcome.kind === 'stale') {
+      setFeedback({ tone: 'info', message: STATUS_CHANGED_MESSAGE });
     } else {
-      setFeedback({
-        tone: 'danger',
-        message:
-          sheetAction === 'open'
-            ? 'Gagal membuka sesi. Sesi mungkin sudah dibuka atau ditutup.'
-            : 'Gagal menutup sesi. Hanya sesi yang sedang dibuka yang bisa ditutup.',
-      });
+      setFeedback({ tone: 'danger', message: outcome.message });
     }
   };
 
   return (
     <View style={styles.container}>
-      <AppBar subtitle="Detail sesi" canGoBack onGoBack={() => router.back()} />
+      <AppBar subtitle="Detail sesi" canGoBack onGoBack={goBackToList} />
       <Screen edges={['left', 'right', 'bottom']}>
         <View style={styles.page}>
-          {feedback ? <Banner tone={feedback.tone} message={feedback.message} /> : null}
+          {feedback ? <Banner key={feedback.id} tone={feedback.tone} message={feedback.message} /> : null}
 
           <Card>
             <SessionInfo session={session} />
@@ -117,7 +143,7 @@ export default function AsistenDetailSesiScreen() {
             action={sheetAction}
             kelas={session.kelas}
             onConfirm={handleConfirm}
-            onClose={() => setSheetVisible(false)}
+            onClose={closeSheet}
           />
         </View>
       </Screen>

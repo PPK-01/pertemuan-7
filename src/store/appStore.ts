@@ -1,8 +1,19 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
-import { dummyKelasPraktikum, dummyUsers } from '@/data/dummy';
-import { login as authLogin, logout as authLogout, register as authRegister } from '@/services/auth';
+import {
+  dummyAttendances,
+  dummyIzin,
+  dummyKelasPraktikum,
+  dummySessions,
+  dummyUsers,
+} from '@/data/dummy';
+import {
+  login as authLogin,
+  logout as authLogout,
+  observeAuth as authObserveAuth,
+  register as authRegister,
+} from '@/services/auth';
 import {
   addKelas as svcAddKelas,
   deleteKelas as svcDeleteKelas,
@@ -22,7 +33,18 @@ import {
   submitIzin as svcSubmitIzin,
 } from '@/services/izin';
 import { classifyIzin } from '@/services/ai';
-import { startSync, stopSync } from './sync';
+import { connectionService } from '@/services/connection';
+import { isFirebaseReady } from '@/services/firebase';
+import { withWriteGuard } from '@/services/guard';
+import { createId } from '@/utils/id';
+import {
+  retrySync as syncRetrySync,
+  startSync as syncStartSync,
+  stopSync as syncStopSync,
+  type SyncKey,
+  type SyncStatus,
+  type SyncStoreDelegate,
+} from './sync';
 import type {
   Attendance,
   AttendResult,
@@ -38,8 +60,7 @@ import type {
   User,
 } from '@/types';
 
-export type SyncKey = 'sessions' | 'kelas' | 'attendances' | 'izin' | 'users';
-export type SyncStatus = 'idle' | 'loading' | 'ready' | 'error';
+export type { SyncKey, SyncStatus };
 
 export type AppStoreState = {
   authStatus: 'loading' | 'signedOut' | 'signedIn';
@@ -56,25 +77,31 @@ export type AppStoreState = {
   sessions: Session[];
   attendances: Attendance[];
   izinList: Izin[];
+  sessionCodes: Record<string, string>;
 
   // Internal setters
   setCurrentUser: (user: User | null) => void;
   setAuthStatus: (status: 'loading' | 'signedOut' | 'signedIn') => void;
   setSyncStatus: (key: SyncKey, status: SyncStatus) => void;
+  setSessionCode: (sessionId: string, code: string) => void;
   /** @deprecated Gunakan logout() */
   resetIdentity: () => void;
 
   // Aksi Auth (FR-01, FR-13 s.d. FR-15)
+  initAuth: () => () => void;
   register: (input: RegisterInput) => Promise<Result<User>>;
   login: (email: string, password: string) => Promise<Result<User>>;
   logout: () => Promise<void>;
 
-  // Aksi Sesi & Kelas (FR-04 s.d. FR-06, FR-18 s.d. FR-20)
+  // Sinkronisasi (C-4, NFR-02)
+  retrySync: (key?: SyncKey) => void;
+
+  // Aksi Sesi & Kelas (FR-04 s.d. FR-06, FR-18 s.d. FR-20, SRS v2.2 §3.4)
   createSession: (input: CreateSessionInput) => Promise<Result<Session>> & { id: string };
   updateSession: (id: string, patch: Partial<Session>) => Promise<Result>;
   deleteSession: (id: string) => Promise<Result>;
-  openSession: (id: string) => Promise<Result> | boolean;
-  closeSession: (id: string) => Promise<Result> | boolean;
+  openSession: (id: string) => Promise<Result>;
+  closeSession: (id: string) => Promise<Result>;
   addKelas: (praktikum: string, kelas: string) => Promise<Result<KelasPraktikum>>;
   updateKelas: (id: string, praktikum: string, kelas: string) => Promise<Result>;
   deleteKelas: (id: string) => Promise<Result>;
@@ -90,12 +117,28 @@ export type AppStoreState = {
   ) => Promise<Result>;
 };
 
+// Delegate sync adapter untuk memutus require-cycle antara appStore dan sync
+function getSyncDelegate(get: () => AppStoreState, set: (partial: Partial<AppStoreState> | ((state: AppStoreState) => Partial<AppStoreState>)) => void): SyncStoreDelegate {
+  return {
+    setSyncStatus: (key, status) => {
+      set((state) => ({ sync: { ...state.sync, [key]: status } }));
+    },
+    getSyncStatus: (key) => get().sync[key],
+    setKelasList: (kelasList) => set({ kelasList }),
+    setSessions: (sessions) => set({ sessions }),
+    setAttendances: (attendances) => set({ attendances }),
+    setIzinList: (izinList) => set({ izinList }),
+    setUsers: (users) => set({ users }),
+    retryAi: (izinId) => get().retryAi(izinId),
+  };
+}
+
 export const useAppStore = create<AppStoreState>()((set, get) => ({
   authStatus: 'loading',
   currentUser: null,
   role: null,
   currentUserId: null,
-  isOnline: true,
+  isOnline: connectionService.isConnected,
   sync: {
     sessions: 'idle',
     kelas: 'idle',
@@ -104,11 +147,13 @@ export const useAppStore = create<AppStoreState>()((set, get) => ({
     users: 'idle',
   },
 
-  users: dummyUsers,
-  kelasList: dummyKelasPraktikum,
-  sessions: [],
-  attendances: [],
-  izinList: [],
+  // State awal: jika Firebase aktif, mulai dengan data kosong (O-4). Jika fallback in-memory, muat dummy data.
+  users: isFirebaseReady ? [] : dummyUsers,
+  kelasList: isFirebaseReady ? [] : dummyKelasPraktikum,
+  sessions: isFirebaseReady ? [] : dummySessions,
+  attendances: isFirebaseReady ? [] : dummyAttendances,
+  izinList: isFirebaseReady ? [] : dummyIzin,
+  sessionCodes: {},
 
   setCurrentUser: (user) => {
     set({
@@ -118,13 +163,14 @@ export const useAppStore = create<AppStoreState>()((set, get) => ({
       authStatus: user ? 'signedIn' : 'signedOut',
     });
     if (user) {
-      startSync(user);
+      syncStartSync(user, getSyncDelegate(get, set));
     } else {
-      stopSync();
+      syncStopSync(getSyncDelegate(get, set));
       set({
-        sessions: [],
-        attendances: [],
-        izinList: [],
+        sessions: isFirebaseReady ? [] : dummySessions,
+        attendances: isFirebaseReady ? [] : dummyAttendances,
+        izinList: isFirebaseReady ? [] : dummyIzin,
+        sessionCodes: {},
       });
     }
   },
@@ -139,6 +185,25 @@ export const useAppStore = create<AppStoreState>()((set, get) => ({
     set((state) => ({
       sync: { ...state.sync, [key]: status },
     }));
+  },
+
+  setSessionCode: (sessionId, code) => {
+    set((state) => ({
+      sessionCodes: { ...state.sessionCodes, [sessionId]: code },
+    }));
+  },
+
+  initAuth: () => {
+    return authObserveAuth((user) => {
+      get().setCurrentUser(user);
+    });
+  },
+
+  retrySync: (key) => {
+    const user = get().currentUser;
+    if (user) {
+      syncRetrySync(key, user, getSyncDelegate(get, set));
+    }
   },
 
   register: async (input) => {
@@ -163,61 +228,70 @@ export const useAppStore = create<AppStoreState>()((set, get) => ({
   },
 
   createSession: (input) => {
-    const tempId = `ses-${Date.now()}`;
-    const promise = (async () => {
-      const res = await svcCreateSession(input);
+    // C-2: Sesi dibuat dengan id final Firestore yang konsisten sejak awal
+    const finalSessionId = createId('ses');
+
+    const promise = withWriteGuard(async () => {
+      const res = await svcCreateSession({ ...input, id: finalSessionId });
       return res;
-    })() as Promise<Result<Session>> & { id: string };
-    promise.id = tempId;
+    }) as Promise<Result<Session>> & { id: string };
+
+    // Kompatibilitas dengan buat.tsx sebelum E-06 selesai: id sinkron sama persis dengan id dokumen Firestore final
+    promise.id = finalSessionId;
     return promise;
   },
 
   updateSession: async (id, patch) => {
-    return svcUpdateSession(id, patch);
+    return withWriteGuard(() => svcUpdateSession(id, patch));
   },
 
   deleteSession: async (id) => {
-    return svcDeleteSession(id);
+    return withWriteGuard(() => svcDeleteSession(id));
   },
 
-  openSession: (id) => {
-    return (async () => {
-      const res = await svcSetStatus(id, 'open');
-      return res;
-    })() as Promise<Result> | boolean;
+  openSession: async (id) => {
+    // C-5: Pra-cek transisi status sesi terkini di store
+    const session = get().sessions.find((s) => s.id === id);
+    if (session && session.status !== 'scheduled') {
+      return {
+        ok: false,
+        code: 'CONFLICT',
+        message:
+          session.status === 'open'
+            ? 'Sesi sudah dibuka'
+            : 'Sesi sudah ditutup dan tidak dapat dibuka kembali',
+      };
+    }
+    return withWriteGuard(() => svcSetStatus(id, 'open'));
   },
 
-  closeSession: (id) => {
-    return (async () => {
-      const res = await svcSetStatus(id, 'closed');
-      return res;
-    })() as Promise<Result> | boolean;
+  closeSession: async (id) => {
+    // C-5: Pra-cek transisi status sesi terkini di store
+    const session = get().sessions.find((s) => s.id === id);
+    if (session && session.status !== 'open') {
+      return {
+        ok: false,
+        code: 'CONFLICT',
+        message:
+          session.status === 'closed'
+            ? 'Sesi sudah ditutup'
+            : 'Sesi belum dibuka',
+      };
+    }
+    return withWriteGuard(() => svcSetStatus(id, 'closed'));
   },
 
   addKelas: async (praktikum, kelas) => {
     const user = get().currentUser;
-    return svcAddKelas(praktikum, kelas, user?.id ?? '');
+    return withWriteGuard(() => svcAddKelas(praktikum, kelas, user?.id ?? ''));
   },
 
   updateKelas: async (id, praktikum, kelas) => {
-    return svcUpdateKelas(id, praktikum, kelas);
+    return withWriteGuard(() => svcUpdateKelas(id, praktikum, kelas));
   },
 
   deleteKelas: async (id) => {
-    const kelasItem = get().kelasList.find((k) => k.id === id);
-    if (kelasItem) {
-      const isUsedInSessions = get().sessions.some(
-        (s) => s.praktikum === kelasItem.praktikum && s.kelas === kelasItem.kelas,
-      );
-      if (isUsedInSessions) {
-        return {
-          ok: false,
-          code: 'CONFLICT',
-          message: 'Kelas tidak dapat dihapus karena masih digunakan oleh sesi praktikum',
-        };
-      }
-    }
-    return svcDeleteKelas(id);
+    return withWriteGuard(() => svcDeleteKelas(id));
   },
 
   submitAttendance: async (sessionId, code) => {
@@ -261,7 +335,7 @@ export const useAppStore = create<AppStoreState>()((set, get) => ({
       return { ok: false, code: 'NOT_FOUND', message: 'Sesi tidak ditemukan' };
     }
 
-    return svcSubmitIzin(sessionId, user, alasan, session);
+    return withWriteGuard(() => svcSubmitIzin(sessionId, user, alasan, session));
   },
 
   retryAi: async (izinId) => {
@@ -270,26 +344,24 @@ export const useAppStore = create<AppStoreState>()((set, get) => ({
       return { ok: false, code: 'NOT_FOUND', message: 'Pengajuan izin tidak ditemukan' };
     }
 
-    const session = get().sessions.find((s) => s.id === izin.sessionId);
-    const praktikum = session?.praktikum ?? 'Praktikum';
-    const topik = session?.topik ?? '';
-    const tanggalSesi = session?.startAt ?? new Date().toISOString();
-
-    const aiResult = await classifyIzin({
-      praktikum,
-      topik,
-      tanggalSesi,
-      alasan: izin.alasan,
+    return withWriteGuard(async () => {
+      const aiResult = await classifyIzin(izin.alasan);
+      return svcSaveAiResult(izinId, aiResult);
     });
-
-    return svcSaveAiResult(izinId, aiResult);
   },
 
   reviewIzin: async (izinId, keputusan, catatan) => {
     const user = get().currentUser;
-    return svcReviewIzin(izinId, user?.id ?? '', keputusan, catatan);
+    return withWriteGuard(() =>
+      svcReviewIzin(izinId, user?.id ?? '', keputusan, catatan),
+    );
   },
 }));
+
+// O-3: Pasang pemantauan status koneksi secara global sejak awal pembentukan store
+connectionService.subscribe((isConnected) => {
+  useAppStore.setState({ isOnline: isConnected });
+});
 
 // ===== Fungsi Murni Rekapitulasi (FR-10, FR-28) =====
 
@@ -393,6 +465,34 @@ export function useSessionById(id: string): Session | null {
   return useAppStore((state) => state.sessions.find((s) => s.id === id) ?? null);
 }
 
+/**
+ * Hook khusus asisten untuk membaca kode sesi 4 digit secara reaktif (C-3, SRS v2.2 §3.4).
+ */
+export function useSessionCode(sessionId?: string): string | null {
+  const codeInStore = useAppStore((state) =>
+    sessionId ? state.sessionCodes[sessionId] : undefined,
+  );
+  const setSessionCode = useAppStore((state) => state.setSessionCode);
+  const currentUser = useCurrentUser();
+
+  useEffect(() => {
+    if (!sessionId || currentUser?.role !== 'asisten' || codeInStore !== undefined) {
+      return;
+    }
+    let isMounted = true;
+    svcGetSessionCode(sessionId).then((code) => {
+      if (isMounted && code !== null) {
+        setSessionCode(sessionId, code);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [sessionId, currentUser?.role, codeInStore, setSessionCode]);
+
+  return codeInStore ?? null;
+}
+
 export function useAttendanceBySession(sessionId: string): Attendance[] {
   return useAppStore(
     useShallow((state) => state.attendances.filter((a) => a.sessionId === sessionId)),
@@ -447,12 +547,19 @@ export function useIzinBySession(sessionId: string): Izin[] {
   );
 }
 
-export function useIzinForAsisten(filter?: IzinStatus | 'all'): Izin[] {
+/**
+ * Hook membaca daftar izin asisten (C-7, FR-25).
+ * Mendukung filter spesifik status, 'all', atau 'pending' ('pending_ai' + 'pending_review').
+ */
+export function useIzinForAsisten(filter?: IzinStatus | 'all' | 'pending'): Izin[] {
   return useAppStore(
     useShallow((state) => {
-      const list = filter && filter !== 'all'
-        ? state.izinList.filter((i) => i.status === filter)
-        : state.izinList;
+      let list = state.izinList;
+      if (filter === 'pending') {
+        list = list.filter((i) => i.status === 'pending_ai' || i.status === 'pending_review');
+      } else if (filter && filter !== 'all') {
+        list = list.filter((i) => i.status === filter);
+      }
       return [...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     }),
   );

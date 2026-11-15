@@ -14,6 +14,17 @@ import { dummyAttendances, dummySessionCodes } from '@/data/dummy';
 import type { Attendance, AttendResult, Session, User } from '@/types';
 
 let inMemoryAttendances: Attendance[] = [...dummyAttendances];
+const fallbackAttendanceListeners = new Set<() => void>();
+
+function notifyFallbackAttendanceListeners() {
+  fallbackAttendanceListeners.forEach((listener) => {
+    try {
+      listener();
+    } catch {
+      // Abaikan error di callback
+    }
+  });
+}
 
 export function listenAttendances(
   user: User,
@@ -21,12 +32,18 @@ export function listenAttendances(
   onError?: (err: Error) => void,
 ): () => void {
   if (!isFirebaseReady || !db) {
-    const list =
-      user.role === 'asisten'
-        ? inMemoryAttendances
-        : inMemoryAttendances.filter((a) => a.userId === user.id);
-    onData(list);
-    return () => {};
+    const notify = () => {
+      const list =
+        user.role === 'asisten'
+          ? inMemoryAttendances
+          : inMemoryAttendances.filter((a) => a.userId === user.id);
+      onData(list);
+    };
+    notify();
+    fallbackAttendanceListeners.add(notify);
+    return () => {
+      fallbackAttendanceListeners.delete(notify);
+    };
   }
 
   const collRef = collection(db, 'attendances');
@@ -101,6 +118,7 @@ export async function submitAttendance(
       timestamp: new Date().toISOString(),
     };
     inMemoryAttendances = [...inMemoryAttendances, att];
+    notifyFallbackAttendanceListeners();
     return { ok: true, attendance: att };
   }
 

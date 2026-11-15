@@ -42,7 +42,9 @@ service cloud.firestore {
       allow update: if isAsisten()
         && request.resource.data.createdBy == resource.data.createdBy
         && request.resource.data.startAt < request.resource.data.endAt
-        && ((resource.data.status == request.resource.data.status && resource.data.status != 'closed')
+        && ((resource.data.status == 'scheduled' && request.resource.data.status == 'scheduled')
+            || (resource.data.status == 'open' && request.resource.data.status == 'open'
+                && changedOnly(['topik', 'ruang', 'endAt', 'updatedAt']))
             || (resource.data.status == 'scheduled' && request.resource.data.status == 'open')
             || (resource.data.status == 'open' && request.resource.data.status == 'closed'));
       allow delete: if isAsisten() && resource.data.status == 'scheduled';

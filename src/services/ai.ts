@@ -1,100 +1,203 @@
 import type { AiResult, IzinKategori } from '@/types';
 
-export type ClassifyIzinInput = {
-  praktikum: string;
-  topik: string;
-  tanggalSesi: string;
-  alasan: string;
+// Kata kunci dan frasa per kategori sesuai SRS v2.2 §5.3
+export const AI_KEYWORDS: Record<Exclude<IzinKategori, 'lainnya'>, string[]> = {
+  sakit: [
+    'sakit',
+    'demam',
+    'dirawat',
+    'rumah sakit',
+    'opname',
+    'dokter',
+    'klinik',
+    'operasi',
+    'kecelakaan',
+  ],
+  keluarga: [
+    'meninggal',
+    'wafat',
+    'duka',
+    'pemakaman',
+    'orang tua sakit',
+    'keluarga sakit',
+    'saudara menikah',
+    'nikahan saudara',
+  ],
+  akademik: [
+    'lomba',
+    'kompetisi',
+    'seminar',
+    'konferensi',
+    'ujian',
+    'delegasi',
+    'dispensasi',
+    'surat tugas',
+  ],
+  tidak_jelas: [
+    'malas',
+    'ketiduran',
+    'lupa',
+    'bangun kesiangan',
+    'main game',
+    'nongkrong',
+  ],
 };
 
-// Inisialisasi Model Analisis Sentimen EDOM (On-Device Inference)
-// Berjalan murni di JavaScript tanpa koneksi jaringan maupun dependency native
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { createSentimentClassifier } = require('../../ai/sentiment.js');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const modelEdom = require('../../ai/model-edom.json');
+function normalizeText(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
-const classifySentiment = createSentimentClassifier(modelEdom);
-
-function inferKategori(alasan: string): IzinKategori {
-  const lower = alasan.toLowerCase();
-
-  if (
-    lower.includes('sakit') ||
-    lower.includes('demam') ||
-    lower.includes('rawat') ||
-    lower.includes('opname') ||
-    lower.includes('dokter') ||
-    lower.includes('pusing') ||
-    lower.includes('flu')
-  ) {
-    return 'sakit';
+function matchKeyword(normalized: string, keyword: string): boolean {
+  const words = normalized.split(' ');
+  const kwWords = keyword.split(' ');
+  if (kwWords.length === 1) {
+    return words.includes(kwWords[0]);
   }
+  const padded = ' ' + normalized + ' ';
+  return padded.includes(' ' + keyword + ' ');
+}
 
-  if (
-    lower.includes('keluarga') ||
-    lower.includes('orang tua') ||
-    lower.includes('ayah') ||
-    lower.includes('ibu') ||
-    lower.includes('saudara') ||
-    lower.includes('duka') ||
-    lower.includes('nikah')
-  ) {
-    return 'keluarga';
-  }
+/**
+ * Menentukan kategori pengajuan izin berdasarkan kata kunci/frasa (SRS v2.2 §5.3).
+ * Prioritas: sakit > keluarga > akademik > tidak_jelas > lainnya.
+ * Fungsi murni, diekspor agar dapat diuji secara independen.
+ */
+export function categorizeIzin(alasan: string): IzinKategori {
+  const norm = normalizeText(alasan);
+  const categories: Array<Exclude<IzinKategori, 'lainnya'>> = [
+    'sakit',
+    'keluarga',
+    'akademik',
+    'tidak_jelas',
+  ];
 
-  if (
-    lower.includes('kuliah') ||
-    lower.includes('lomba') ||
-    lower.includes('ujian') ||
-    lower.includes('seminar') ||
-    lower.includes('sidang') ||
-    lower.includes('organisasi') ||
-    lower.includes('kegiatan')
-  ) {
-    return 'akademik';
+  for (const cat of categories) {
+    for (const kw of AI_KEYWORDS[cat]) {
+      if (matchKeyword(norm, kw)) {
+        return cat;
+      }
+    }
   }
 
   return 'lainnya';
 }
 
 /**
- * Mengklasifikasikan pengajuan izin menggunakan Model EDOM On-Device.
- * Kontrak: Tidak pernah throw error; selalu mengembalikan Promise<AiResult>.
+ * Menurunkan saran dari kategori (SRS v2.2 §5.3):
+ * - sakit / keluarga / akademik -> diterima
+ * - tidak_jelas -> ditolak
+ * - lainnya -> perlu_cek
  */
-export async function classifyIzin(input: ClassifyIzinInput): Promise<AiResult> {
+export function getSaranFromKategori(
+  kategori: IzinKategori,
+): 'diterima' | 'ditolak' | 'perlu_cek' {
+  switch (kategori) {
+    case 'sakit':
+    case 'keluarga':
+    case 'akademik':
+      return 'diterima';
+    case 'tidak_jelas':
+      return 'ditolak';
+    case 'lainnya':
+    default:
+      return 'perlu_cek';
+  }
+}
+
+// Inisialisasi Model Analisis Sentimen EDOM On-Device (SRS v2.2 §5.4)
+// Dibungkus try-catch agar kegagalan format model tidak membuat aplikasi crash saat impor modul.
+let classifySentiment: ((text: string) => {
+  label: 'positif' | 'netral' | 'negatif' | null;
+  status: string;
+  scores: number[] | null;
+}) | null = null;
+
+let modelLabels: string[] = ['negatif', 'netral', 'positif'];
+
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { createSentimentClassifier } = require('../../ai/sentiment.js');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const modelEdom = require('../../ai/model-edom.json');
+  if (Array.isArray(modelEdom?.labels)) {
+    modelLabels = modelEdom.labels;
+  }
+  classifySentiment = createSentimentClassifier(modelEdom);
+} catch (err) {
+  console.warn('[services/ai] Gagal memuat model EDOM:', err);
+  classifySentiment = null;
+}
+
+/**
+ * Mengklasifikasikan pengajuan izin menggunakan pipeline SRS v2.2 §5:
+ * 1. Sentimen teks dari model EDOM on-device (informasi eksperimental).
+ * 2. Kategori alasan dari pencocokan kata kunci/frasa utuh.
+ * 3. Saran diturunkan dari kategori (bukan dari sentimen).
+ * 
+ * Kontrak: Tidak pernah melempar exception; kegagalan dikembalikan sebagai Result failed.
+ */
+export async function classifyIzin(alasan: string): Promise<AiResult> {
   const at = new Date().toISOString();
+  const trimmed = alasan?.trim() ?? '';
+
+  // Pemicu uji gagal khusus pengembangan (SRS v2.2 §5.6)
+  if (typeof __DEV__ !== 'undefined' && __DEV__ && trimmed.includes('[ai-error]')) {
+    return {
+      state: 'failed',
+      errorCode: 'MODEL_ERROR',
+      at,
+    };
+  }
 
   try {
-    const text = input.alasan?.trim() ?? '';
-    const prediction = classifySentiment(text);
+    let sentimen: 'positif' | 'netral' | 'negatif' | null = null;
+    let skor: Record<string, number> | null = null;
 
-    if (!prediction || prediction.label === null) {
+    if (classifySentiment) {
+      const pred = classifySentiment(trimmed);
+      sentimen = pred?.label ?? null;
+      if (Array.isArray(pred?.scores)) {
+        skor = Object.fromEntries(
+          modelLabels.map((lbl, idx) => [lbl, pred.scores![idx]]),
+        );
+      }
+    } else {
+      // Model tidak tersedia/gagal dimuat
       return {
         state: 'failed',
-        errorCode: 'INVALID_RESPONSE',
+        errorCode: 'MODEL_ERROR',
         at,
       };
     }
 
-    const kategori = inferKategori(text);
-    const sentimen = prediction.label as 'positif' | 'netral' | 'negatif';
-    const keputusan: 'diterima' | 'ditolak' = sentimen === 'negatif' ? 'ditolak' : 'diterima';
+    const kategori = categorizeIzin(trimmed);
+    const saran = getSaranFromKategori(kategori);
 
-    const penjelasan = `Model EDOM: Sentimen terdeteksi "${sentimen}". Saran: ${keputusan}.`;
+    const sentimenText = sentimen ?? 'tidak dikenali';
+    const penjelasan = `Alasan terdeteksi kategori ${kategori}. Sentimen teks: ${sentimenText} (eksperimental).`;
 
     return {
       state: 'success',
-      keputusan,
       kategori,
-      alasan: penjelasan,
+      saran,
+      sentimen,
+      skor,
+      penjelasan: penjelasan.slice(0, 200),
+      eksperimental: true,
       at,
+      // Kompatibilitas transisi untuk komponen UI sebelum E-10 selesai
+      keputusan: saran === 'ditolak' ? 'ditolak' : 'diterima',
+      alasan: penjelasan.slice(0, 200),
     };
   } catch (err) {
-    console.warn('[AI/EDOM] Gagal inferensi lokal:', err);
+    console.warn('[services/ai] Exception inferensi:', err);
     return {
       state: 'failed',
-      errorCode: 'INVALID_RESPONSE',
+      errorCode: 'MODEL_ERROR',
       at,
     };
   }

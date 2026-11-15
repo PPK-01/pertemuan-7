@@ -5,7 +5,6 @@ import { View } from 'react-native';
 
 import { LoadingState } from '@/components/ui/LoadingState';
 import { OfflineBanner } from '@/components/ui/OfflineBanner';
-import { observeAuth } from '@/services/auth';
 import { useAppStore, useAuthStatus, useCurrentUser, useIsOnline } from '@/store/appStore';
 import { colors } from '@/theme/colors';
 
@@ -27,17 +26,15 @@ export default function RootLayout() {
   const authStatus = useAuthStatus();
   const isOnline = useIsOnline();
   const segments = useSegments();
-  const setCurrentUser = useAppStore((state) => state.setCurrentUser);
+  const initAuth = useAppStore((state) => state.initAuth);
 
-  // 1. Inisialisasi Auth Observer
+  // 1. Inisialisasi Auth Observer (SRS §10 Aturan 6: tanpa impor services/)
   useEffect(() => {
-    const unsubscribe = observeAuth((user) => {
-      setCurrentUser(user);
-    });
+    const unsubscribe = initAuth();
     return () => {
       unsubscribe();
     };
-  }, [setCurrentUser]);
+  }, [initAuth]);
 
   // 2. Proteksi Rute (Route Guarding / Role Gate)
   useEffect(() => {

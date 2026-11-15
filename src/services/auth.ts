@@ -6,7 +6,7 @@ import {
 } from 'firebase/auth';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { auth, db, isFirebaseReady } from './firebase';
-import { getUser, setFallbackUsers, getFallbackUsers } from './users';
+import { getUserProfile, setFallbackUsers, getFallbackUsers } from './users';
 import { mapFirebaseError } from './errors';
 import { safeStorage } from './storage';
 import type { RegisterInput, Result, User } from '@/types';
@@ -17,6 +17,9 @@ const FALLBACK_AUTH_KEY = '@rawuh_fallback_current_user_id';
 let fallbackCurrentUser: User | null = null;
 const fallbackAuthListeners = new Set<(user: User | null) => void>();
 
+// Penanda proses registrasi untuk mencegah race condition pada observeAuth (A-1, FR-16)
+let isRegistering = false;
+
 export async function register(input: RegisterInput): Promise<Result<User>> {
   if (!isFirebaseReady || !auth || !db) {
     // Mode Fallback
@@ -25,7 +28,8 @@ export async function register(input: RegisterInput): Promise<Result<User>> {
       return { ok: false, code: 'CONFLICT', message: 'Email sudah terdaftar' };
     }
 
-    if (input.role === 'asisten' && input.inviteCode !== 'LAB-RAWUH-2026') {
+    // FR-13 / §6.1: Kode undangan tidak boleh di-hardcode ke rahasia tertentu di kode aplikasi
+    if (input.role === 'asisten' && !input.inviteCode?.trim()) {
       return { ok: false, code: 'PERMISSION_DENIED', message: 'Kode undangan asisten tidak sesuai' };
     }
 
@@ -47,6 +51,7 @@ export async function register(input: RegisterInput): Promise<Result<User>> {
   }
 
   // Firebase Real
+  isRegistering = true;
   try {
     const cred = await createUserWithEmailAndPassword(auth, input.email.trim(), input.password);
     const uid = cred.user.uid;
@@ -98,6 +103,8 @@ export async function register(input: RegisterInput): Promise<Result<User>> {
   } catch (error) {
     const mapped = mapFirebaseError(error);
     return { ok: false, code: mapped.code, message: mapped.message };
+  } finally {
+    isRegistering = false;
   }
 }
 
@@ -122,9 +129,9 @@ export async function login(email: string, password: string): Promise<Result<Use
   // Firebase Real
   try {
     const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
-    const profile = await getUser(cred.user.uid);
+    const profileRes = await getUserProfile(cred.user.uid);
 
-    if (!profile) {
+    if (profileRes.state === 'not_found') {
       await signOut(auth);
       return {
         ok: false,
@@ -133,7 +140,15 @@ export async function login(email: string, password: string): Promise<Result<Use
       };
     }
 
-    return { ok: true, data: profile };
+    if (profileRes.state === 'error') {
+      return {
+        ok: false,
+        code: 'NO_CONNECTION',
+        message: 'Gagal memuat profil pengguna. Periksa koneksi internet.',
+      };
+    }
+
+    return { ok: true, data: profileRes.user };
   } catch (error) {
     const mapped = mapFirebaseError(error);
     return { ok: false, code: mapped.code, message: mapped.message };
@@ -180,17 +195,27 @@ export function observeAuth(onUser: (user: User | null) => void): () => void {
       return;
     }
 
+    // Jika registrasi sedang berlangsung, jangan intercept profil sebelum setDoc selesai (A-1, FR-16)
+    if (isRegistering) {
+      return;
+    }
+
     try {
-      const profile = await getUser(fbUser.uid);
-      if (!profile) {
-        // FR-16: Profil tidak ditemukan di Firestore, logout pengguna
-        await signOut(auth!);
-        onUser(null);
+      const profileRes = await getUserProfile(fbUser.uid);
+      if (profileRes.state === 'found') {
+        onUser(profileRes.user);
+      } else if (profileRes.state === 'not_found') {
+        // FR-16: Profil benar-benar tidak ditemukan di Firestore, logout pengguna
+        if (!isRegistering) {
+          await signOut(auth!);
+          onUser(null);
+        }
       } else {
-        onUser(profile);
+        // profileRes.state === 'error' (A-2: offline/error jaringan, jangan logout pengguna)
+        console.warn('[services/auth] Gagal memuat profil pengguna karena error jaringan/offline. Sesi dipertahankan.');
       }
     } catch {
-      onUser(null);
+      // Jangan signOut bila error exception
     }
   });
 

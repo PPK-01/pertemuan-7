@@ -20,15 +20,4 @@ export const env = {
       );
     },
   },
-  ai: {
-    url: process.env.EXPO_PUBLIC_AI_URL ?? '',
-    key: process.env.EXPO_PUBLIC_AI_KEY ?? '',
-    get isConfigured(): boolean {
-      return (
-        Boolean(this.url) &&
-        this.url.startsWith('http') &&
-        !this.url.includes('YOUR_')
-      );
-    },
-  },
 };

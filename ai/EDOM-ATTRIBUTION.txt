@@ -1,0 +1,9 @@
+Atribusi Model dan Dataset EDOM Sentiment
+
+Model ini dilatih menggunakan dataset evaluasi dosen oleh mahasiswa (EDOM) dari:
+- Sumber repositori: https://github.com/samfch/edom-sentiment
+- Pengembang/Penulis: Samuel Ficardo (samfch)
+- Lisensi: MIT License (lihat EDOM-LICENSE.txt)
+
+Dataset dan model digunakan sebagai model inferensi lokal eksperimental (baseline on-device LinearSVC)
+dalam rangka praktikum pengembangan aplikasi presensi dan perizinan "Rawuh" (Sprint 2).

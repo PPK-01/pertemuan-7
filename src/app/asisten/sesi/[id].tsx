@@ -1,5 +1,5 @@
-import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { CodeDisplay } from '@/components/session/CodeDisplay';
@@ -12,6 +12,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
 import { goBackToList } from '@/features/asisten/goBackToList';
 import { RekapList } from '@/features/asisten/RekapList';
+import { takeSessionFlash } from '@/features/asisten/sessionFlash';
 import { StatusActionSheet } from '@/features/asisten/StatusActionSheet';
 import type { StatusAction } from '@/features/asisten/StatusActionSheet';
 import { readStatusActionResult } from '@/features/asisten/statusActionResult';
@@ -49,6 +50,16 @@ export default function AsistenDetailSesiScreen() {
     setFeedbackState((prev) => ({ ...next, id: (prev?.id ?? 0) + 1 }));
 
   const currentStatus = session?.status ?? null;
+
+  // Pesan sukses dari form ubah sesi, diambil saat layar ini kembali fokus setelah router.back().
+  useFocusEffect(
+    useCallback(() => {
+      const message = takeSessionFlash(sessionId);
+      if (message) {
+        setFeedbackState((prev) => ({ tone: 'success', message, id: (prev?.id ?? 0) + 1 }));
+      }
+    }, [sessionId]),
+  );
 
   // Status berubah dari luar (asisten lain atau listener realtime) selagi sheet terbuka:
   // aksi yang ditawarkan sheet sudah tidak berlaku, jadi sheet ditutup dan asisten diberi tahu.
@@ -109,6 +120,17 @@ export default function AsistenDetailSesiScreen() {
           <Card>
             <SessionInfo session={session} />
           </Card>
+
+          {session.status !== 'closed' ? (
+            <Button
+              label="Ubah"
+              variant="secondary"
+              accessibilityLabel="Ubah sesi"
+              onPress={() =>
+                router.push({ pathname: '/asisten/buat', params: { id: session.id } })
+              }
+            />
+          ) : null}
 
           {session.status === 'open' ? (
             <CodeDisplay

@@ -32,7 +32,15 @@ export type SessionFormProps = {
   submitError?: SessionFormFeedback | null;
   /** Ada nilai = tombol kirim nonaktif dan teks ini menjelaskan alasannya, mis. offline. */
   disabledHint?: string;
+  /** Isian awal, mis. dari sesi yang diubah. Hanya dibaca saat mount. */
+  initialValues?: SessionFormValues;
+  /** Kolom yang tampil non-aktif, mis. saat sesi Dibuka (FR-18). */
+  lockedFields?: readonly LockableField[];
+  /** Keterangan singkat di bawah kolom yang dikunci. */
+  lockedHint?: string;
 };
+
+export type LockableField = 'praktikum' | 'kelas' | 'tanggal' | 'jamMulai';
 
 type ChoiceGroupProps = {
   label: string;
@@ -42,13 +50,24 @@ type ChoiceGroupProps = {
   error?: string;
   /** Pengganti chip saat belum ada pilihan, mis. daftar kelas masih kosong. */
   emptyText?: string;
+  disabled?: boolean;
+  hint?: string;
 };
 
 // Urutan pilihan stabil apa pun urutan dokumen kelasPraktikum dari listener.
 const byName = (a: string, b: string) => a.localeCompare(b, 'id');
 
 // Label dan pesan error meniru TextField agar kolom pilihan sejajar dengan kolom ketik.
-function ChoiceGroup({ label, options, value, onChange, error, emptyText }: ChoiceGroupProps) {
+function ChoiceGroup({
+  label,
+  options,
+  value,
+  onChange,
+  error,
+  emptyText,
+  disabled = false,
+  hint,
+}: ChoiceGroupProps) {
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
@@ -62,6 +81,7 @@ function ChoiceGroup({ label, options, value, onChange, error, emptyText }: Choi
               label={option}
               selected={value === option}
               onPress={() => onChange(option)}
+              disabled={disabled}
             />
           ))}
         </View>
@@ -70,9 +90,16 @@ function ChoiceGroup({ label, options, value, onChange, error, emptyText }: Choi
         <Text aria-live="polite" style={styles.error}>
           {error}
         </Text>
+      ) : hint ? (
+        <Text style={styles.hint}>{hint}</Text>
       ) : null}
     </View>
   );
+}
+
+// Pilihan yang sedang terpasang tetap tampil walau sudah tidak ada di kelasPraktikum.
+function withCurrent(options: string[], current: string | null): string[] {
+  return current && !options.includes(current) ? [current, ...options] : options;
 }
 
 export function SessionForm({
@@ -81,28 +108,46 @@ export function SessionForm({
   submitLabel = 'Buat sesi',
   submitError,
   disabledHint,
+  initialValues,
+  lockedFields = [],
+  lockedHint,
 }: SessionFormProps) {
   const kelasList = useKelasList();
   const kelasSync = useSyncState('kelas');
-  const [values, setValues] = useState<SessionFormValues>(emptySessionFormValues);
+  const [values, setValues] = useState<SessionFormValues>(
+    () => initialValues ?? emptySessionFormValues(),
+  );
+  const isLocked = (field: LockableField) => lockedFields.includes(field);
+  // Pasangan praktikum dan kelas yang dikunci tidak dikirim ulang, jadi tidak perlu dicek.
+  const pairLocked = lockedFields.includes('praktikum') && lockedFields.includes('kelas');
   // Error baru tampil setelah submit pertama, lalu ikut nilai terbaru agar hilang begitu diperbaiki.
   const [attempted, setAttempted] = useState(false);
 
   // Pilihan praktikum dan kelas berasal dari kelasPraktikum (FR-04), bukan daftar tetap.
   const praktikumOptions = useMemo(
-    () => [...new Set(kelasList.map((item) => item.praktikum))].sort(byName),
-    [kelasList],
+    () =>
+      withCurrent(
+        [...new Set(kelasList.map((item) => item.praktikum))].sort(byName),
+        values.praktikum,
+      ),
+    [kelasList, values.praktikum],
   );
   const kelasOptions = useMemo(
     () =>
-      kelasList
-        .filter((item) => item.praktikum === values.praktikum)
-        .map((item) => item.kelas)
-        .sort(byName),
-    [kelasList, values.praktikum],
+      withCurrent(
+        kelasList
+          .filter((item) => item.praktikum === values.praktikum)
+          .map((item) => item.kelas)
+          .sort(byName),
+        values.kelas,
+      ),
+    [kelasList, values.praktikum, values.kelas],
   );
 
-  const result = useMemo(() => validateSessionForm(values, kelasList), [values, kelasList]);
+  const result = useMemo(
+    () => validateSessionForm(values, pairLocked ? undefined : kelasList),
+    [values, kelasList, pairLocked],
+  );
   const errors = attempted && !result.ok ? result.errors : {};
   const showValidationBanner = attempted && !result.ok;
 
@@ -140,6 +185,8 @@ export function SessionForm({
           onChange={setPraktikum}
           error={errors.praktikum}
           emptyText={noKelasText}
+          disabled={isLocked('praktikum')}
+          hint={isLocked('praktikum') ? lockedHint : undefined}
         />
         <ChoiceGroup
           label="Kelas"
@@ -148,6 +195,8 @@ export function SessionForm({
           onChange={(value) => setField('kelas', value)}
           error={errors.kelas}
           emptyText={values.praktikum ? noKelasText : 'Pilih praktikum lebih dulu.'}
+          disabled={isLocked('kelas')}
+          hint={isLocked('kelas') ? lockedHint : undefined}
         />
         <TextField
           label="Topik"
@@ -171,19 +220,21 @@ export function SessionForm({
           label="Tanggal"
           value={values.tanggal}
           onChangeText={(text) => setField('tanggal', text)}
-          hint="Contoh: 28/10/2026"
+          hint={isLocked('tanggal') ? lockedHint : 'Contoh: 28/10/2026'}
           error={errors.tanggal}
           keyboardType="numeric"
           maxLength={10}
+          disabled={isLocked('tanggal')}
         />
         <TextField
           label="Jam mulai"
           value={values.jamMulai}
           onChangeText={(text) => setField('jamMulai', text)}
-          hint="Contoh: 09.00"
+          hint={isLocked('jamMulai') ? lockedHint : 'Contoh: 09.00'}
           error={errors.jamMulai}
           keyboardType="numeric"
           maxLength={5}
+          disabled={isLocked('jamMulai')}
         />
         <TextField
           label="Jam selesai"

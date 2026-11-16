@@ -25,6 +25,8 @@ export type TextFieldProps = {
   textContentType?: TextInputProps['textContentType'];
   /** Aksesori di sisi kanan dalam kotak input, mis. tombol tampilkan kata sandi. */
   right?: ReactNode;
+  /** Tidak bisa diedit; nilai tetap terbaca, mis. kolom yang dikunci. */
+  disabled?: boolean;
   /** Khusus layout (margin, flex, alignSelf), bukan warna/ukuran. */
   style?: StyleProp<ViewStyle>;
 };
@@ -48,6 +50,7 @@ export function TextField({
   autoCorrect,
   textContentType,
   right,
+  disabled = false,
   style,
 }: TextFieldProps) {
   const [focused, setFocused] = useState(false);
@@ -75,6 +78,8 @@ export function TextField({
           autoComplete={autoComplete}
           autoCorrect={autoCorrect}
           textContentType={textContentType}
+          editable={!disabled}
+          aria-disabled={disabled}
           aria-label={label}
           aria-describedby={message ? messageId : undefined}
           aria-invalid={hasError}
@@ -82,6 +87,7 @@ export function TextField({
             styles.input,
             hasError && styles.inputError,
             focused && !hasError && styles.inputFocused,
+            disabled && styles.inputDisabled,
             right ? { paddingRight: rightWidth } : null,
           ]}
         />
@@ -135,6 +141,11 @@ const styles = StyleSheet.create({
     borderWidth: FOCUS_BORDER_WIDTH,
     paddingHorizontal: spacing.md - FOCUS_INSET,
     paddingVertical: spacing.sm - FOCUS_INSET,
+  },
+  inputDisabled: {
+    backgroundColor: colors.disabled.bg,
+    borderColor: colors.border,
+    color: colors.textMuted,
   },
   right: {
     position: 'absolute',

@@ -4,11 +4,16 @@ import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { IzinRow } from '@/components/izin/IzinRow';
 import { AppBar } from '@/components/ui/AppBar';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { LoadingState } from '@/components/ui/LoadingState';
 import { Screen } from '@/components/ui/Screen';
-import { useCurrentUser, useIzinByUser, useSessionsForUser } from '@/store/appStore';
+import { SyncErrorState } from '@/components/ui/SyncErrorState';
+import { useSyncRetry } from '@/features/asisten/useSyncRetry';
+import { useCurrentUser, useIzinByUser, useSessionsForUser, useSyncState } from '@/store/appStore';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
+
+const IZIN_SYNC_KEYS = ['izin'] as const;
 
 function ListSeparator() {
   return <View style={styles.separator} />;
@@ -19,6 +24,11 @@ export default function IzinListScreen() {
   const userId = currentUser?.id ?? '';
   const izinList = useIzinByUser(userId);
   const sessions = useSessionsForUser(userId);
+
+  const izinSync = useSyncState('izin');
+  const izinRetry = useSyncRetry(IZIN_SYNC_KEYS);
+  const syncError = izinSync === 'error';
+  const loadingInitial = izinSync === 'loading' && izinList.length === 0;
 
   const sessionMap = new Map(sessions.map((s) => [s.id, s]));
 
@@ -58,6 +68,14 @@ export default function IzinListScreen() {
                   </Text>
                 </View>
 
+                {izinRetry.visible ? (
+                  <SyncErrorState
+                    message={izinRetry.message}
+                    onRetry={izinRetry.retry}
+                    retrying={izinRetry.retrying}
+                  />
+                ) : null}
+
                 <View style={styles.sectionHeaderRow}>
                   <Text style={styles.sectionTitle}>Riwayat Pengajuan</Text>
                   <Text style={styles.countText}>{izinList.length} pengajuan</Text>
@@ -65,14 +83,18 @@ export default function IzinListScreen() {
               </View>
             }
             ListEmptyComponent={
-              <EmptyState
-                title="Belum ada pengajuan izin"
-                message="Kamu belum pernah mengajukan izin. Untuk mengajukan, buka sesi praktikum di tab Jadwal lalu pilih Ajukan Izin."
-                action={{
-                  label: 'Lihat Jadwal',
-                  onPress: () => router.push('/praktikan/jadwal'),
-                }}
-              />
+              syncError && izinList.length === 0 ? null : loadingInitial ? (
+                <LoadingState label="Memuat pengajuan izin…" />
+              ) : (
+                <EmptyState
+                  title="Belum ada pengajuan izin"
+                  message="Kamu belum pernah mengajukan izin. Untuk mengajukan, buka sesi praktikum di tab Jadwal lalu pilih Ajukan Izin."
+                  action={{
+                    label: 'Lihat Jadwal',
+                    onPress: () => router.push('/praktikan/jadwal'),
+                  }}
+                />
+              )
             }
           />
         </View>

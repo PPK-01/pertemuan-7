@@ -63,7 +63,10 @@ export function listenAttendances(
           userId: data.userId,
           kelas: data.kelas,
           code: data.code,
-          timestamp: typeof data.timestamp?.toDate === 'function' ? data.timestamp.toDate().toISOString() : data.timestamp,
+          timestamp:
+            typeof data.timestamp?.toDate === 'function'
+              ? data.timestamp.toDate().toISOString()
+              : (data.timestamp || new Date().toISOString()),
         };
       });
       onData(list);

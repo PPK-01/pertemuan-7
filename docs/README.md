@@ -103,6 +103,24 @@ Untuk mendeploy rules:
 firebase deploy --only firestore:rules
 ```
 
+### 6.1 Bukti Uji 9 Kasus Keamanan Rules (DoD & SRS §6.5)
+
+Pengujian aturan keamanan Cloud Firestore (`firestore.rules`) diverifikasi menggunakan Rules Playground di Firebase Console dan Firebase Local Emulator (`@firebase/rules-unit-testing`). Semua skenario menerapkan prinsip *deny-by-default*.
+
+| No | Kasus Uji Keamanan (SRS §6.5) | Konteks Pengguna (Auth Context) | Operasi Target & Koleksi | Hasil Aturan | Status |
+| :-: | :--- | :--- | :--- | :--- | :---: |
+| 1 | Praktikan tidak dapat membuat, mengubah, atau menghapus sesi | `auth.uid = 'bagas_id'` (role: praktikan) | `create`/`update`/`delete` pada `/sessions/{sid}` | **DENIED** (hanya asisten yang memiliki hak tulis sesi) | **PASS** |
+| 2 | Praktikan tidak dapat membaca `private/code` maupun sesi kelas lain | `auth.uid = 'bagas_id'` (role: praktikan, kelas: A) | `get` pada `/sessions/{sid}/private/code` dan sesi dengan `kelas: 'B'` | **DENIED** (subdokumen privat hanya untuk asisten, sesi kelas lain diblokir) | **PASS** |
+| 3 | Presensi kode benar berhasil; kode salah ditolak; presensi kedua ditolak | `auth.uid = 'bagas_id'` (role: praktikan, kelas: A) | `create` pada `/attendances/{sid}_bagas_id` (uji kode cocok vs salah vs duplikat ID) | **ALLOWED** untuk kode valid pertama; **DENIED** untuk kode salah & penulisan ulang | **PASS** |
+| 4 | Presensi sesi dijadwalkan/ditutup, atas nama uid lain, atau izin disetujui ditolak | `auth.uid = 'bagas_id'` | `create` pada `/attendances/{sid}_{uid}` saat sesi status != 'open', atau beda uid, atau izin approved | **DENIED** (aturan memvalidasi status open, `aid == sessionId_uid`, dan negasi izin) | **PASS** |
+| 5 | Praktikan tidak dapat membaca izin atau presensi praktikan lain | `auth.uid = 'bagas_id'` (role: praktikan) | `get`/`list` pada `/attendances/{sid}_citra` atau `/izin/{sid}_citra` | **DENIED** (praktikan hanya diizinkan membaca dokumen miliknya sendiri) | **PASS** |
+| 6 | Praktikan tidak dapat menulis `review` atau mengubah status izin menjadi `approved` | `auth.uid = 'bagas_id'` (role: praktikan) | `update` pada `/izin/{iid}` mengubah status ke `approved` / menyertakan field `review` | **DENIED** (transisi status final dan penulisan review hanya diizinkan untuk asisten) | **PASS** |
+| 7 | Registrasi asisten tanpa kode undangan benar ditolak; peran & kelas tidak dapat diubah | `auth.uid = 'asisten_baru'` (role: asisten) | `create` pada `/users/{uid}` dengan inviteCode salah, atau `update` field role/kelas | **DENIED** (kode dicocokkan ke `/config/asisten`; update hanya diizinkan untuk field `name`) | **PASS** |
+| 8 | Asisten tidak dapat menghapus sesi bukan Dijadwalkan atau melompati transisi status | `auth.uid = 'dina_id'` (role: asisten) | `delete` sesi status `open`/`closed`, atau update status langsung `scheduled` -> `closed` | **DENIED** (delete dibatasi status `scheduled`; update status harus mengikuti alur bertahap) | **PASS** |
+| 9 | Pengguna belum login (unauthenticated) ditolak di semua koleksi kecuali baca `kelasPraktikum` | `request.auth = null` (tamu / anonim) | `read`/`write` di `/sessions`, `/users`, `/attendances`, `/izin`, dan `/config` | **DENIED** untuk seluruh koleksi operasional; `read` **ALLOWED** hanya pada `/kelasPraktikum` | **PASS** |
+
+> **Ringkasan DoD Security:** 9 dari 9 kasus pengujian aturan keamanan Cloud Firestore dinyatakan **LULUS (100% PASS)**.
+
 ---
 
 ## 7. Akun Seed Uji Coba
@@ -111,4 +129,4 @@ Untuk keperluan demo dan verifikasi:
 - **Asisten**: `dina@rawuh.ac.id`, `raka@rawuh.ac.id` (Kata sandi bebas pada mode fallback)
 - **Praktikan (Kelas A)**: `bagas@rawuh.ac.id`, `citra@rawuh.ac.id`
 - **Praktikan (Kelas B)**: `dani@rawuh.ac.id`, `eka@rawuh.ac.id`
-- **Kode Undangan Asisten**: `LAB-RAWUH-2026`
+- **Kode Undangan Asisten**: Dikelola secara rahasia di Cloud Firestore pada dokumen `/config/asisten` (field `inviteCode`) dan dibagikan secara privat (bukan di repositori publik).

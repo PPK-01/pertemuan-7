@@ -171,7 +171,7 @@ export async function updateSession(
   try {
     const sessionRef = doc(db, 'sessions', id);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { id: _id, code: _code, ...cleanPatch } = patch;
+    const { id: _id, ...cleanPatch } = patch;
     const batch = writeBatch(db);
     batch.update(sessionRef, {
       ...cleanPatch,

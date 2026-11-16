@@ -6,17 +6,23 @@ import { SessionRow } from '@/components/session/SessionRow';
 import { AppBar } from '@/components/ui/AppBar';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { IdentityCard } from '@/components/ui/IdentityCard';
+import { LoadingState } from '@/components/ui/LoadingState';
 import { Screen } from '@/components/ui/Screen';
+import { SyncErrorState } from '@/components/ui/SyncErrorState';
+import { useSyncRetry } from '@/features/asisten/useSyncRetry';
 import {
   useAppStore,
   useAttendanceByUser,
   useCurrentUser,
   useIzinByUser,
   useSessionsForUser,
+  useSyncState,
 } from '@/store/appStore';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
+
+const JADWAL_SYNC_KEYS = ['sessions'] as const;
 
 function ListSeparator() {
   return <View style={styles.separator} />;
@@ -29,6 +35,11 @@ export default function JadwalScreen() {
   const sessions = useSessionsForUser(userId);
   const attendances = useAttendanceByUser(userId);
   const izinList = useIzinByUser(userId);
+
+  const sessionsSync = useSyncState('sessions');
+  const sessionsRetry = useSyncRetry(JADWAL_SYNC_KEYS);
+  const syncError = sessionsSync === 'error';
+  const loadingInitial = sessionsSync === 'loading' && sessions.length === 0;
 
   const attendedSessionIds = useMemo(
     () => new Set(attendances.map((a) => a.sessionId)),
@@ -119,6 +130,14 @@ export default function JadwalScreen() {
                   onAction={handleLogout}
                 />
 
+                {sessionsRetry.visible ? (
+                  <SyncErrorState
+                    message={sessionsRetry.message}
+                    onRetry={sessionsRetry.retry}
+                    retrying={sessionsRetry.retrying}
+                  />
+                ) : null}
+
                 {/* Strip Sedang Dibuka */}
                 {activeOpenSessions.length > 0 ? (
                   <View style={styles.openStrip}>
@@ -133,10 +152,14 @@ export default function JadwalScreen() {
               </View>
             }
             ListEmptyComponent={
-              <EmptyState
-                title="Belum ada sesi"
-                message={`Belum ada sesi praktikum yang dijadwalkan untuk Kelas ${currentUser.kelas ?? ''}.`}
-              />
+              syncError && sessions.length === 0 ? null : loadingInitial ? (
+                <LoadingState label="Memuat jadwal praktikum…" />
+              ) : (
+                <EmptyState
+                  title="Belum ada sesi"
+                  message={`Belum ada sesi praktikum yang dijadwalkan untuk Kelas ${currentUser.kelas ?? ''}.`}
+                />
+              )
             }
           />
         </View>

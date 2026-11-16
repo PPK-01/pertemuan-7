@@ -91,8 +91,6 @@ export const dummyIzin: Izin[] = [
       penjelasan: 'Alasan terdeteksi kategori sakit. Sentimen teks: netral (eksperimental).',
       eksperimental: true,
       at: '2026-11-12T07:50:00.000Z',
-      keputusan: 'diterima',
-      alasan: 'Alasan terdeteksi kategori sakit. Sentimen teks: netral (eksperimental).',
     },
     createdAt: '2026-11-12T07:49:00.000Z',
     updatedAt: '2026-11-12T07:50:00.000Z',
@@ -114,8 +112,6 @@ export const dummyIzin: Izin[] = [
       penjelasan: 'Alasan terdeteksi kategori keluarga. Sentimen teks: positif (eksperimental).',
       eksperimental: true,
       at: '2026-11-13T09:00:00.000Z',
-      keputusan: 'diterima',
-      alasan: 'Alasan terdeteksi kategori keluarga. Sentimen teks: positif (eksperimental).',
     },
     review: {
       reviewedBy: 'usr-asisten-2',
@@ -159,8 +155,6 @@ export const dummyIzin: Izin[] = [
       penjelasan: 'Alasan terdeteksi kategori tidak_jelas. Sentimen teks: negatif (eksperimental).',
       eksperimental: true,
       at: '2026-11-11T07:30:00.000Z',
-      keputusan: 'ditolak',
-      alasan: 'Alasan terdeteksi kategori tidak_jelas. Sentimen teks: negatif (eksperimental).',
     },
     review: {
       reviewedBy: 'usr-asisten-1',

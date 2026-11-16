@@ -1,5 +1,5 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { SessionInfo } from '@/components/session/SessionInfo';
@@ -68,6 +68,14 @@ export default function AsistenDetailSesiScreen() {
 
   const session = useSessionById(sessionId);
   const rekap = useRekap(sessionId);
+  // Praktikan yang hadir lalu izinnya disetujui tetap di "Sudah hadir" saja (presensi menang);
+  // computeRekap memasukkannya ke kedua kelompok. Total tidak berubah.
+  const rekapView = useMemo(() => {
+    if (!rekap) return null;
+    const hadirIds = new Set(rekap.hadir.map((h) => h.user.id));
+    const izin = rekap.izin.filter((i) => !hadirIds.has(i.user.id));
+    return izin.length === rekap.izin.length ? rekap : { ...rekap, izin };
+  }, [rekap]);
   const izinList = useIzinBySession(sessionId);
   const isOnline = useIsOnline();
   const sessionsSync = useSyncState('sessions');
@@ -244,8 +252,8 @@ export default function AsistenDetailSesiScreen() {
             </Text>
             {session.status === 'scheduled' ? (
               <Text style={styles.sectionHint}>Rekap muncul setelah sesi dibuka.</Text>
-            ) : rekap ? (
-              <RekapList rekap={rekap} />
+            ) : rekapView ? (
+              <RekapList rekap={rekapView} />
             ) : null}
           </View>
 

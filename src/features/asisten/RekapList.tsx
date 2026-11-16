@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { getKategoriLabel } from '@/components/izin/AiSuggestionCard';
 import { Card } from '@/components/ui/Card';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
@@ -8,11 +9,16 @@ import type { Rekap } from '@/types';
 import { formatTime } from '@/utils/time';
 
 export type RekapListProps = {
+  /** `izin` hanya izin disetujui dan tidak memuat praktikan yang sudah hadir; disaring pemanggil. */
   rekap: Rekap;
 };
 
 export function RekapList({ rekap }: RekapListProps) {
-  const { hadir, belumHadir, total } = rekap;
+  const { hadir, izin, belumHadir, total } = rekap;
+  const summary =
+    izin.length > 0
+      ? `Hadir ${hadir.length} dari ${total} · ${izin.length} izin`
+      : `Hadir ${hadir.length} dari ${total}`;
   const progressPercent = total > 0 ? Math.round((hadir.length / total) * 100) : 0;
 
   return (
@@ -23,7 +29,7 @@ export function RekapList({ rekap }: RekapListProps) {
             <Text
               aria-live="polite"
               style={styles.summary}
-            >{`Hadir ${hadir.length} dari ${total}`}</Text>
+            >{summary}</Text>
           </View>
 
           <View style={styles.track}>
@@ -56,10 +62,46 @@ export function RekapList({ rekap }: RekapListProps) {
 
           <View style={styles.sectionDivider} />
 
+          {/* FR-10, FR-28: izin disetujui dipisah dari belum hadir. */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{`Izin (${izin.length})`}</Text>
+            {izin.length === 0 ? (
+              <Text style={styles.empty}>Tidak ada izin yang disetujui.</Text>
+            ) : (
+              <View style={styles.list}>
+                {izin.map(({ user, izin: item }, index) => {
+                  const kategori =
+                    item.ai?.state === 'success' ? getKategoriLabel(item.ai.kategori) : null;
+                  return (
+                    <View
+                      key={user.id}
+                      accessible
+                      aria-label={
+                        kategori
+                          ? `${user.name}, izin disetujui, kategori ${kategori}`
+                          : `${user.name}, izin disetujui`
+                      }
+                      style={[styles.row, index > 0 && styles.rowDivider]}
+                    >
+                      <Text style={styles.name}>{user.name}</Text>
+                      {kategori ? <Text style={styles.meta}>{kategori}</Text> : null}
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+
+          <View style={styles.sectionDivider} />
+
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{`Belum hadir (${belumHadir.length})`}</Text>
             {belumHadir.length === 0 ? (
-              <Text style={styles.empty}>Semua praktikan sudah hadir.</Text>
+              <Text style={styles.empty}>
+                {izin.length > 0
+                  ? 'Semua praktikan sudah hadir atau izin.'
+                  : 'Semua praktikan sudah hadir.'}
+              </Text>
             ) : (
               <View style={styles.list}>
                 {belumHadir.map((user, index) => (
@@ -120,6 +162,7 @@ const styles = StyleSheet.create({
   },
   rowDivider: { borderTopWidth: 1, borderTopColor: colors.border },
   name: { ...typography.body, color: colors.text, flex: 1 },
+  meta: { ...typography.label, color: colors.textMuted, flexShrink: 0 },
   time: {
     ...typography.label,
     color: colors.textMuted,

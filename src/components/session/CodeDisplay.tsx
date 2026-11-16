@@ -30,8 +30,9 @@ export function CodeDisplay({
       <Text style={styles.label}>Kode sesi</Text>
       <View
         accessible
+        // Pengecualian ARIA: prop role tidak punya nilai 'text' untuk teks statis.
         accessibilityRole="text"
-        accessibilityLabel={`Kode sesi ${code.split('').join(' ')}`}
+        aria-label={`Kode sesi ${code.split('').join(' ')}`}
         style={styles.cellRow}
       >
         {digits.map((digit, index) => (

@@ -1,12 +1,13 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { formatSessionTime } from '@/components/session/sessionTime';
 import { StatusBadge } from '@/components/session/StatusBadge';
+import { STATUS_LABEL } from '@/components/session/statusLabel';
 import { PRESSED_OPACITY } from '@/components/ui/pressable';
 import { colors } from '@/theme/colors';
 import { layout, radius, spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 import type { Session } from '@/types';
-import { formatDate, formatTime } from '@/utils/time';
 
 export type SessionRowProps = {
   session: Session;
@@ -20,14 +21,15 @@ const BORDER_WIDTH = 1;
 const TOPIK_LINE_HEIGHT = 22;
 
 export function SessionRow({ session, onPress, footerText }: SessionRowProps) {
-  const timeText = `${formatDate(session.startAt)}, ${formatTime(session.startAt)}–${formatTime(session.endAt)}`;
+  const timeText = formatSessionTime(session);
 
   return (
     <Pressable
       onPress={onPress}
       disabled={!onPress}
       role="button"
-      aria-label={`${session.praktikum}, Kelas ${session.kelas}, ${session.topik}, ${session.status}`}
+      // Status dibacakan dengan teks yang sama dengan badge, bukan nilai mentah ('open').
+      aria-label={`${session.praktikum}, Kelas ${session.kelas}, ${session.topik}, ${STATUS_LABEL[session.status]}`}
       style={({ pressed }) => [
         styles.row,
         pressed && onPress && { opacity: PRESSED_OPACITY },

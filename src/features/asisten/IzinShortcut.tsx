@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { PRESSED_OPACITY } from '@/components/ui/pressable';
+import { IZIN_FILTER_LABEL } from '@/features/asisten/izinFilterLabels';
 import { colors } from '@/theme/colors';
 import { layout, radius, spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
@@ -28,7 +29,8 @@ function izinAriaLabel(count: number, status: IzinShortcutProps['countStatus']):
 function izinHint(count: number, status: IzinShortcutProps['countStatus']): string {
   if (status === 'loading') return 'Memuat jumlah';
   if (status === 'error') return 'Jumlah gagal dimuat';
-  return count > 0 ? 'Perlu diperiksa' : 'Lihat daftar';
+  // Sama dengan chip filter default di daftar izin.
+  return count > 0 ? IZIN_FILTER_LABEL.pending : 'Lihat daftar';
 }
 
 export function IzinShortcut({ pendingCount, countStatus, onPress }: IzinShortcutProps) {

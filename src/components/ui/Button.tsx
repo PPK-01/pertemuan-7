@@ -65,7 +65,7 @@ export function Button({
           size="small"
           color={color}
           style={styles.spinner}
-          accessibilityLabel="Memuat"
+          aria-label="Memuat"
         />
       ) : null}
       <Text style={[styles.label, { color }]}>{label}</Text>

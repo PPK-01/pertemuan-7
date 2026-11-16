@@ -52,8 +52,8 @@ export function CodeInput({
       <Pressable
         onPress={handlePress}
         accessible
-        accessibilityRole="none"
-        accessibilityLabel="Area input kode sesi 4 digit"
+        role="none"
+        aria-label="Area input kode sesi 4 digit"
         style={styles.cellRow}
       >
         {[0, 1, 2, 3].map((index) => {
@@ -88,7 +88,8 @@ export function CodeInput({
         keyboardType="number-pad"
         inputMode="numeric"
         maxLength={4}
-        accessibilityLabel="Kode sesi, 4 digit"
+        aria-label="Kode sesi, 4 digit"
+        // Pengecualian ARIA: RN belum punya prop ARIA untuk hint.
         accessibilityHint="Ketik 4 digit angka yang dibagikan asisten"
         style={styles.hiddenInput}
       />

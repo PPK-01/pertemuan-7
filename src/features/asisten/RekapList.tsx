@@ -118,6 +118,10 @@ export function RekapList({ rekap }: RekapListProps) {
   );
 }
 
+// Ukuran tanpa padanan token: bilah progres tipis dan garis pemisah 1dp (sama dengan BORDER_WIDTH).
+const PROGRESS_TRACK_HEIGHT = 4;
+const DIVIDER_WIDTH = 1;
+
 const styles = StyleSheet.create({
   container: { gap: spacing.md },
   panelContent: { gap: spacing.md },
@@ -132,7 +136,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   track: {
-    height: 4,
+    height: PROGRESS_TRACK_HEIGHT,
     backgroundColor: colors.border,
     borderRadius: radius.full,
     overflow: 'hidden',
@@ -144,12 +148,12 @@ const styles = StyleSheet.create({
   section: { gap: spacing.sm },
   sectionTitle: { ...typography.label, color: colors.text },
   sectionDivider: {
-    height: 1,
+    height: DIVIDER_WIDTH,
     backgroundColor: colors.border,
     marginVertical: spacing.xs,
   },
   list: {
-    borderTopWidth: 1,
+    borderTopWidth: DIVIDER_WIDTH,
     borderTopColor: colors.border,
   },
   empty: { ...typography.body, color: colors.textMuted, paddingVertical: spacing.xs },
@@ -160,7 +164,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingVertical: spacing.sm,
   },
-  rowDivider: { borderTopWidth: 1, borderTopColor: colors.border },
+  rowDivider: { borderTopWidth: DIVIDER_WIDTH, borderTopColor: colors.border },
   name: { ...typography.body, color: colors.text, flex: 1 },
   meta: { ...typography.label, color: colors.textMuted, flexShrink: 0 },
   time: {

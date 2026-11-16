@@ -15,6 +15,14 @@ export type CodeInputProps = {
   style?: StyleProp<ViewStyle>;
 };
 
+// Ukuran tanpa padanan token: sel cukup lebar untuk satu digit typography.code, tepi sel lebih
+// tebal saat aktif, dan input asli disembunyikan sekecil mungkin tanpa dilepas dari layout.
+const CELL_WIDTH = 64;
+const CELL_HEIGHT = 76;
+const CELL_BORDER_WIDTH = 1.5;
+const ACTIVE_BORDER_WIDTH = 2;
+const HIDDEN_INPUT_SIZE = 1;
+
 export function CodeInput({
   value,
   onChange,
@@ -103,10 +111,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   cell: {
-    width: 64,
-    height: 76,
+    width: CELL_WIDTH,
+    height: CELL_HEIGHT,
     backgroundColor: colors.surface,
-    borderWidth: 1.5,
+    borderWidth: CELL_BORDER_WIDTH,
     borderColor: colors.borderStrong,
     borderRadius: radius.md,
     alignItems: 'center',
@@ -114,7 +122,7 @@ const styles = StyleSheet.create({
   },
   cellActive: {
     borderColor: colors.primary,
-    borderWidth: 2,
+    borderWidth: ACTIVE_BORDER_WIDTH,
   },
   cellError: {
     borderColor: colors.feedback.danger.text,
@@ -133,8 +141,8 @@ const styles = StyleSheet.create({
   hiddenInput: {
     position: 'absolute',
     opacity: 0,
-    width: 1,
-    height: 1,
+    width: HIDDEN_INPUT_SIZE,
+    height: HIDDEN_INPUT_SIZE,
   },
   errorText: {
     ...typography.caption,

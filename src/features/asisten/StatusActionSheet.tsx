@@ -60,12 +60,15 @@ export function StatusActionSheet({
   );
 }
 
+// Garis tepi tipis sama dengan Banner dan Button; belum ada token lebar garis.
+const BORDER_WIDTH = 1;
+
 const styles = StyleSheet.create({
   body: { ...typography.body, color: colors.text },
   warning: {
     backgroundColor: colors.feedback.warning.bg,
     borderColor: colors.feedback.warning.text,
-    borderWidth: 1,
+    borderWidth: BORDER_WIDTH,
     borderRadius: radius.md,
     padding: spacing.md,
   },

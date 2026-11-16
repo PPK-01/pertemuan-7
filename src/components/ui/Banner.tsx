@@ -14,6 +14,9 @@ export type BannerProps = {
   style?: StyleProp<ViewStyle>;
 };
 
+// Garis tepi tipis sama dengan Card; belum ada token lebar garis.
+const BORDER_WIDTH = 1;
+
 export function Banner({ tone, message, title, style }: BannerProps) {
   const { bg, text } = colors.feedback[tone];
 
@@ -35,7 +38,7 @@ export function Banner({ tone, message, title, style }: BannerProps) {
 const styles = StyleSheet.create({
   container: {
     borderRadius: radius.md,
-    borderWidth: 1,
+    borderWidth: BORDER_WIDTH,
     padding: spacing.md,
     gap: spacing.xs,
   },

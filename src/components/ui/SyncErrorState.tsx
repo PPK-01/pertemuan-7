@@ -67,10 +67,13 @@ export function SyncErrorState({
   );
 }
 
+// Garis tepi tipis sama dengan Banner dan Button; belum ada token lebar garis.
+const BORDER_WIDTH = 1;
+
 const styles = StyleSheet.create({
   container: {
     borderRadius: radius.md,
-    borderWidth: 1,
+    borderWidth: BORDER_WIDTH,
     padding: spacing.md,
     gap: spacing.md,
   },
@@ -82,7 +85,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     columnGap: spacing.sm,
     borderRadius: radius.sm,
-    borderWidth: 1,
+    borderWidth: BORDER_WIDTH,
     paddingVertical: spacing.xs,
     paddingLeft: spacing.md,
     paddingRight: spacing.xs,

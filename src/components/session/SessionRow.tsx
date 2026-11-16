@@ -14,6 +14,11 @@ export type SessionRowProps = {
   footerText?: string;
 };
 
+// Ukuran tanpa padanan token: garis tepi kartu sama dengan Card, dan jarak baris topik yang
+// lebih rapat dari typography.body agar dua baris topik tetap ringkas.
+const BORDER_WIDTH = 1;
+const TOPIK_LINE_HEIGHT = 22;
+
 export function SessionRow({ session, onPress, footerText }: SessionRowProps) {
   const timeText = `${formatDate(session.startAt)}, ${formatTime(session.startAt)}–${formatTime(session.endAt)}`;
 
@@ -65,7 +70,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     backgroundColor: colors.surface,
     borderRadius: radius.md,
-    borderWidth: 1,
+    borderWidth: BORDER_WIDTH,
     borderColor: colors.border,
     gap: spacing.xs,
   },
@@ -76,14 +81,14 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   praktikum: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.title.fontWeight,
     color: colors.primary,
     flex: 1,
   },
   topik: {
     fontSize: typography.body.fontSize,
-    lineHeight: 22,
+    lineHeight: TOPIK_LINE_HEIGHT,
     fontWeight: '600',
     color: colors.text,
   },

@@ -45,11 +45,14 @@ export function Chip({ label, selected, onPress, disabled = false, style }: Chip
   );
 }
 
+// Garis tepi tipis sama dengan Banner dan Button; belum ada token lebar garis.
+const BORDER_WIDTH = 1;
+
 const styles = StyleSheet.create({
   base: {
     minHeight: layout.minTouch,
     borderRadius: radius.full,
-    borderWidth: 1,
+    borderWidth: BORDER_WIDTH,
     borderColor: colors.borderStrong,
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.lg,

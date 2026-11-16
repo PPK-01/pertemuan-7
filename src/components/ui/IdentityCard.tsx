@@ -14,6 +14,13 @@ export type IdentityCardProps = {
   onGantiPeran?: () => void;
 };
 
+// Ukuran tanpa padanan token: avatar inisial, tepi aksen lebih tebal dari garis tepi biasa
+// agar terlihat di atas navy, dan teks pendukung sedikit diredupkan.
+const AVATAR_SIZE = 48;
+const AVATAR_BORDER_WIDTH = 2;
+const BORDER_WIDTH = 1;
+const SUPPORTING_OPACITY = 0.8;
+
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/);
   if (parts.length === 0 || !parts[0]) return '?';
@@ -78,12 +85,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   avatar: {
-    width: 48,
-    height: 48,
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
     borderRadius: radius.full,
     // TODO token: isian putih transparan di atas navy (usulan colors.onPrimarySubtle)
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderWidth: 2,
+    borderWidth: AVATAR_BORDER_WIDTH,
     borderColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
@@ -97,7 +104,7 @@ const styles = StyleSheet.create({
     minHeight: layout.minTouch,
     paddingHorizontal: spacing.md,
     borderRadius: radius.full,
-    borderWidth: 1,
+    borderWidth: BORDER_WIDTH,
     // TODO token: tepi tombol outline di atas navy (usulan colors.onPrimaryBorder)
     borderColor: 'rgba(255, 255, 255, 0.4)',
     alignItems: 'center',
@@ -109,7 +116,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   infoBlock: {
-    gap: 2,
+    gap: spacing.xs / 2,
   },
   name: {
     ...typography.title,
@@ -124,6 +131,6 @@ const styles = StyleSheet.create({
   supportingInfo: {
     ...typography.caption,
     color: colors.onPrimary,
-    opacity: 0.8,
+    opacity: SUPPORTING_OPACITY,
   },
 });

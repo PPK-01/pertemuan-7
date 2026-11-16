@@ -15,6 +15,18 @@ export type AppBarProps = {
   rightAction?: ReactNode;
 };
 
+// Ukuran tanpa padanan token: tinggi bar mengikuti app bar Material, slot samping memuat
+// tombol kembali, dan ikon chevron digambar dari dua garis.
+const BAR_HEIGHT = 56;
+const SIDE_SLOT_WIDTH = 48;
+const BACK_ICON_SIZE = 20;
+const CHEVRON_LENGTH = 10;
+const CHEVRON_THICKNESS = 2.5;
+const CHEVRON_RADIUS = 1;
+const CHEVRON_OFFSET = 3;
+// Subjudul sedikit diredupkan di atas navy; nilainya sama dengan petunjuk di panel kode.
+const SUBTITLE_OPACITY = 0.85;
+
 function BackIcon() {
   return (
     <View style={styles.backIconFrame}>
@@ -76,13 +88,13 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255, 255, 255, 0.12)',
   },
   bar: {
-    height: 56,
+    height: BAR_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
   },
   sideSlot: {
-    width: 48,
+    width: SIDE_SLOT_WIDTH,
     alignItems: 'flex-start',
     justifyContent: 'center',
   },
@@ -94,10 +106,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // Judul bar lebih kecil dari typography.title agar muat satu baris di 360dp; tiap nilai tetap
+  // diambil dari token yang angkanya sama.
   title: {
-    fontSize: 16,
-    lineHeight: 20,
-    fontWeight: '700',
+    fontSize: typography.body.fontSize,
+    lineHeight: typography.label.lineHeight,
+    fontWeight: typography.title.fontWeight,
     color: colors.onPrimary,
   },
   subtitle: {
@@ -105,8 +119,8 @@ const styles = StyleSheet.create({
     lineHeight: typography.caption.lineHeight,
     fontWeight: typography.caption.fontWeight,
     color: colors.onPrimary,
-    opacity: 0.85,
-    marginTop: 2,
+    opacity: SUBTITLE_OPACITY,
+    marginTop: spacing.xs / 2,
   },
   backButton: {
     minWidth: layout.minTouch,
@@ -115,24 +129,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   backIconFrame: {
-    width: 20,
-    height: 20,
+    width: BACK_ICON_SIZE,
+    height: BACK_ICON_SIZE,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
   },
   chevronTop: {
-    width: 10,
-    height: 2.5,
+    width: CHEVRON_LENGTH,
+    height: CHEVRON_THICKNESS,
     backgroundColor: colors.onPrimary,
-    borderRadius: 1,
-    transform: [{ rotate: '-45deg' }, { translateY: -3 }],
+    borderRadius: CHEVRON_RADIUS,
+    transform: [{ rotate: '-45deg' }, { translateY: -CHEVRON_OFFSET }],
   },
   chevronBottom: {
-    width: 10,
-    height: 2.5,
+    width: CHEVRON_LENGTH,
+    height: CHEVRON_THICKNESS,
     backgroundColor: colors.onPrimary,
-    borderRadius: 1,
-    transform: [{ rotate: '45deg' }, { translateY: 3 }],
+    borderRadius: CHEVRON_RADIUS,
+    transform: [{ rotate: '45deg' }, { translateY: CHEVRON_OFFSET }],
   },
 });

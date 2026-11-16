@@ -28,11 +28,12 @@ import {
   useIzinBySession,
   useRekap,
   useSessionById,
+  useSyncState,
 } from '@/store/appStore';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
-import type { SessionStatus } from '@/types';
+import type { ErrorCode, SessionStatus } from '@/types';
 
 // id membuat Banner di-mount ulang agar pesan yang sama tetap diumumkan pembaca layar.
 type Feedback = { id: number; tone: 'success' | 'danger' | 'info'; message: string };
@@ -44,6 +45,20 @@ type SheetState = { kind: SheetKind; fromStatus: SessionStatus };
 // Tombol "Kembali ke daftar sesi" selalu menuju daftar, apa pun riwayatnya (mis. dari detail
 // izin); tombol kembali di AppBar tetap mengikuti riwayat lewat goBackToList.
 const goToList = () => router.replace('/asisten');
+
+// Bila rules menolak karena status sudah berubah sebelum listener sempat memperbarui store,
+// Result-nya bukan CONFLICT. Status terbaru dibaca langsung dari store (bukan dari closure
+// render) dan dibandingkan dengan status saat sheet dibuka.
+function failureMessage(
+  sessionId: string,
+  fromStatus: SessionStatus,
+  code: ErrorCode,
+  action: 'status' | 'delete',
+): string {
+  const latest = useAppStore.getState().sessions.find((s) => s.id === sessionId);
+  if (!latest || latest.status !== fromStatus) return STATUS_CHANGED_MESSAGE;
+  return sessionErrorMessage(code, action);
+}
 
 const SUCCESS_MESSAGE: Record<StatusAction, string> = {
   open: 'Sesi dibuka',
@@ -58,6 +73,7 @@ export default function AsistenDetailSesiScreen() {
   const rekap = useRekap(sessionId);
   const izinList = useIzinBySession(sessionId);
   const isOnline = useIsOnline();
+  const sessionsSync = useSyncState('sessions');
   const openSession = useAppStore((state) => state.openSession);
   const closeSession = useAppStore((state) => state.closeSession);
   const deleteSession = useAppStore((state) => state.deleteSession);
@@ -107,6 +123,9 @@ export default function AsistenDetailSesiScreen() {
           {pending ? (
             // Listener sudah membuang sesi yang sedang dihapus sebelum Result diterima.
             <LoadingState label="Menghapus sesi…" />
+          ) : sessionsSync === 'loading' ? (
+            // Refresh atau deep link: daftar sesi belum termuat, belum tentu sesinya tidak ada.
+            <LoadingState label="Memuat sesi…" />
           ) : (
             <EmptyState
               title="Sesi tidak ditemukan"
@@ -132,6 +151,7 @@ export default function AsistenDetailSesiScreen() {
   const handleStatusConfirm = async () => {
     if (pendingRef.current) return;
     const action = statusAction;
+    const fromStatus = sheet?.fromStatus ?? session.status;
     pendingRef.current = true;
     setPending(true);
 
@@ -141,12 +161,12 @@ export default function AsistenDetailSesiScreen() {
     pendingRef.current = false;
     setPending(false);
     setSheet(null);
-    // Transisi yang sudah tidak berlaku datang sebagai CONFLICT dari pra-cek store,
-    // dan sessionErrorMessage memetakannya ke STATUS_CHANGED_MESSAGE.
+    // Transisi yang sudah tidak berlaku datang sebagai CONFLICT dari pra-cek store, atau
+    // ditolak rules sebelum store diperbarui; keduanya menjadi STATUS_CHANGED_MESSAGE.
     setFeedback(
       res.ok
         ? { tone: 'success', message: SUCCESS_MESSAGE[action] }
-        : { tone: 'danger', message: sessionErrorMessage(res.code, 'status') },
+        : { tone: 'danger', message: failureMessage(session.id, fromStatus, res.code, 'status') },
     );
   };
 
@@ -171,7 +191,10 @@ export default function AsistenDetailSesiScreen() {
     pendingRef.current = false;
     setPending(false);
     setSheet(null);
-    setFeedback({ tone: 'danger', message: sessionErrorMessage(res.code, 'delete') });
+    setFeedback({
+      tone: 'danger',
+      message: failureMessage(session.id, 'scheduled', res.code, 'delete'),
+    });
   };
 
   return (

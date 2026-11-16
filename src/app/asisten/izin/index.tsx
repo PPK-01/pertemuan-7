@@ -43,7 +43,6 @@ export default function AsistenIzinListScreen() {
   const izinSync = useSyncState('izin');
   const sessions = useSessionsForUser(currentUser?.id ?? '');
   const sessionsSync = useSyncState('sessions');
-  const sessionsLoading = sessionsSync === 'idle' || sessionsSync === 'loading';
 
   const [filter, setFilter] = useState<IzinFilter>(DEFAULT_IZIN_FILTER);
 
@@ -88,7 +87,7 @@ export default function AsistenIzinListScreen() {
             <IzinRow
               izin={item}
               praktikanName={getPraktikanName(item.userName)}
-              sessionLabel={getIzinSessionLabel(sessionById.get(item.sessionId), sessionsLoading)}
+              sessionLabel={getIzinSessionLabel(sessionById.get(item.sessionId), sessionsSync)}
               onPress={() =>
                 router.push({ pathname: '/asisten/izin/[id]', params: { id: item.id } })
               }

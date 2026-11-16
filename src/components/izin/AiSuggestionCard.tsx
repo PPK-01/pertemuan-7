@@ -1,166 +1,226 @@
 import { StyleSheet, Text, View } from 'react-native';
+
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { LoadingState } from '@/components/ui/LoadingState';
 import { colors } from '@/theme/colors';
+import type { ColorPair } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
-import type { AiResult } from '@/types';
+import type { AiErrorCode, AiResult, IzinKategori } from '@/types';
+
+type AiSuccess = Extract<AiResult, { state: 'success' }>;
+export type AiSaran = AiSuccess['saran'];
+type AiSentimen = AiSuccess['sentimen'];
 
 export type AiSuggestionCardProps = {
+  /** Kosong = analisis belum selesai (izin masih `pending_ai`); kartu menampilkan state memuat. */
   ai?: AiResult;
+  /**
+   * Tombol "Coba lagi analisis AI" hanya tampil bila ada dan `ai.state === 'failed'` (FR-24).
+   * Berikan hanya selama izin masih bisa diperiksa; kartu gagal memakai keberadaannya untuk
+   * menampilkan keterangan bahwa asisten tetap dapat memutuskan.
+   */
+  onRetry?: () => void;
+  /** Analisis ulang sedang berjalan; tombol menampilkan spinner. */
+  retrying?: boolean;
+  /** Mis. offline; tombol coba lagi nonaktif. */
+  retryDisabled?: boolean;
 };
 
-export function AiSuggestionCard({ ai }: AiSuggestionCardProps) {
-  if (!ai) {
-    return (
-      <View style={styles.card}>
-        <Text style={styles.title}>Saran Analisis AI</Text>
-        <Text style={styles.mutedText}>Sedang memproses analisis...</Text>
-      </View>
-    );
-  }
+/** Teks saran AI (FR-26), dipakai juga oleh sheet pemeriksaan untuk penanda beda saran. */
+export const AI_SARAN_LABEL = {
+  diterima: 'Diterima',
+  ditolak: 'Ditolak',
+  perlu_cek: 'Perlu dicek',
+} as const satisfies Record<AiSaran, string>;
 
-  if (ai.state === 'failed') {
-    return (
-      <View style={[styles.card, styles.failedCard]}>
-        <View style={styles.header}>
-          <Text style={[styles.title, styles.failedTitle]}>Analisis AI Tidak Tersedia</Text>
-          <View style={styles.tagFailed}>
-            <Text style={styles.tagTextFailed}>{ai.errorCode}</Text>
-          </View>
-        </View>
-        <Text style={styles.failedDesc}>
-          Layanan AI tidak dapat menganalisis alasan secara otomatis. Anda tetap dapat memutuskan izin ini secara manual.
-        </Text>
-      </View>
-    );
-  }
+// Makna tidak hanya dari warna: teks saran selalu tampil. perlu_cek memakai warning (DESIGN.md).
+const SARAN_TONE = {
+  diterima: colors.feedback.success,
+  ditolak: colors.feedback.danger,
+  perlu_cek: colors.feedback.warning,
+} as const satisfies Record<AiSaran, ColorPair>;
 
-  const isAccepted = ai.keputusan === 'diterima';
+export const IZIN_KATEGORI_LABEL = {
+  sakit: 'Sakit',
+  keluarga: 'Keluarga',
+  akademik: 'Akademik',
+  lainnya: 'Lainnya',
+  tidak_jelas: 'Tidak jelas',
+} as const satisfies Record<IzinKategori, string>;
 
+const SENTIMEN_LABEL = {
+  positif: 'Positif',
+  netral: 'Netral',
+  negatif: 'Negatif',
+} as const satisfies Record<NonNullable<AiSentimen>, string>;
+
+const AI_ERROR_CAUSE = {
+  MODEL_ERROR: 'Model AI tidak dapat dijalankan',
+} as const satisfies Record<AiErrorCode, string>;
+
+/** Data Firestore bisa memuat nilai di luar tipe; tampilkan apa adanya daripada kosong. */
+export function getKategoriLabel(kategori: IzinKategori): string {
+  return IZIN_KATEGORI_LABEL[kategori] ?? kategori;
+}
+
+export function getSaranLabel(saran: AiSaran): string {
+  return AI_SARAN_LABEL[saran] ?? saran;
+}
+
+function getSentimenLabel(sentimen: AiSentimen): string {
+  // null = kata tidak dikenali model; bukan kegagalan (SRS §5.4).
+  return sentimen ? (SENTIMEN_LABEL[sentimen] ?? sentimen) : 'Tidak dikenali';
+}
+
+function ExperimentalTag() {
   return (
-    <View style={styles.card}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Saran Analisis AI</Text>
-        <View style={[styles.badge, isAccepted ? styles.badgeAccepted : styles.badgeRejected]}>
-          <Text style={[styles.badgeText, isAccepted ? styles.badgeTextAccepted : styles.badgeTextRejected]}>
-            Saran: {isAccepted ? 'Diterima' : 'Ditolak'}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.row}>
-        <Text style={styles.label}>Kategori:</Text>
-        <Text style={styles.value}>{ai.kategori.toUpperCase()}</Text>
-      </View>
-
-      {ai.alasan ? (
-        <View style={styles.explanationBox}>
-          <Text style={styles.explanationText}>&ldquo;{ai.alasan}&rdquo;</Text>
-        </View>
-      ) : null}
-
-      <Text style={styles.disclaimer}>
-        * Catatan: Saran AI hanya referensi pendukung. Keputusan mutlak berada di tangan Asisten Lab.
-      </Text>
+    <View style={styles.tag}>
+      <Text style={styles.tagText}>Eksperimental</Text>
     </View>
   );
 }
 
+function Header({ title }: { title: string }) {
+  return (
+    <View style={styles.header}>
+      <Text role="heading" style={styles.title}>
+        {title}
+      </Text>
+      <ExperimentalTag />
+    </View>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue}>{value}</Text>
+    </View>
+  );
+}
+
+const DISCLAIMER = 'Saran AI hanya bahan pertimbangan. Keputusan tetap di tangan asisten.';
+
+// Ukuran tanpa padanan token: garis tepi tipis sama dengan Card/Banner, dan setengah spacing.xs
+// untuk jarak rapat (pola IzinRow).
+const HAIRLINE_BORDER = 1;
+const TIGHT_GAP = spacing.xs / 2;
+
+export function AiSuggestionCard({
+  ai,
+  onRetry,
+  retrying = false,
+  retryDisabled = false,
+}: AiSuggestionCardProps) {
+  if (!ai) {
+    return (
+      <Card>
+        <View style={styles.content}>
+          <Header title="Saran AI" />
+          <LoadingState label="Menunggu analisis AI…" />
+        </View>
+      </Card>
+    );
+  }
+
+  if (ai.state === 'failed') {
+    const cause = AI_ERROR_CAUSE[ai.errorCode] ?? 'Penyebab tidak diketahui';
+    return (
+      <Card>
+        <View style={styles.content}>
+          <Header title="Analisis AI gagal" />
+          <Text style={styles.body}>{`Penyebab: ${cause} (${ai.errorCode}).`}</Text>
+          {onRetry ? (
+            // onRetry hanya diberikan selama izin masih bisa diperiksa; setelah diputuskan,
+            // kalimat ini justru menyesatkan.
+            <Text style={styles.muted}>Kamu tetap dapat memutuskan izin ini tanpa saran AI.</Text>
+          ) : null}
+          {onRetry ? (
+            <Button
+              label="Coba lagi analisis AI"
+              variant="secondary"
+              onPress={onRetry}
+              loading={retrying}
+              disabled={retryDisabled}
+            />
+          ) : null}
+        </View>
+      </Card>
+    );
+  }
+
+  const saranLabel = getSaranLabel(ai.saran);
+  const kategoriLabel = getKategoriLabel(ai.kategori);
+  const tone = SARAN_TONE[ai.saran] ?? colors.feedback.warning;
+  const sentimenLabel = getSentimenLabel(ai.sentimen);
+  // Card accessible menggabungkan isinya, jadi label memuat semua yang tampil (FR-26).
+  const a11yLabel = [
+    `Saran AI eksperimental: ${saranLabel}`,
+    `kategori ${kategoriLabel}`,
+    `sentimen teks ${sentimenLabel}.`,
+    ai.penjelasan ?? '',
+    DISCLAIMER,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return (
+    <Card accessibilityLabel={a11yLabel}>
+      <View style={styles.content}>
+        <Header title="Saran AI" />
+        <View style={[styles.saranBox, { backgroundColor: tone.bg, borderColor: tone.text }]}>
+          <Text style={[styles.saranCaption, { color: tone.text }]}>Saran</Text>
+          <Text style={[styles.saranValue, { color: tone.text }]}>{saranLabel}</Text>
+        </View>
+        <View style={styles.infoList}>
+          <InfoRow label="Kategori" value={kategoriLabel} />
+          <InfoRow label="Sentimen teks (eksperimental)" value={sentimenLabel} />
+        </View>
+        {ai.penjelasan ? <Text style={styles.muted}>{ai.penjelasan}</Text> : null}
+        <Text style={styles.muted}>{DISCLAIMER}</Text>
+      </View>
+    </Card>
+  );
+}
+
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#F7F8FC',
-    borderColor: '#D0D6E5',
-    borderWidth: 1,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  failedCard: {
-    backgroundColor: '#FFF8F0',
-    borderColor: '#FFD9B3',
-  },
+  content: { gap: spacing.md },
   header: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    gap: spacing.sm,
   },
-  title: {
-    ...typography.label,
-    color: colors.primary,
-    fontWeight: '700',
-  },
-  mutedText: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  failedTitle: {
-    color: '#8A4200',
-  },
-  tagFailed: {
-    backgroundColor: '#FFE2C6',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radius.sm,
-  },
-  tagTextFailed: {
-    ...typography.caption,
-    color: '#8A4200',
-    fontWeight: '700',
-  },
-  failedDesc: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  badge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+  title: { ...typography.heading, color: colors.text, flexShrink: 1 },
+  tag: {
+    borderWidth: HAIRLINE_BORDER,
+    borderColor: colors.borderStrong,
     borderRadius: radius.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: TIGHT_GAP,
   },
-  badgeAccepted: {
-    backgroundColor: '#DDF1E4',
+  tagText: { ...typography.caption, color: colors.textMuted, fontWeight: typography.label.fontWeight },
+  saranBox: {
+    borderWidth: HAIRLINE_BORDER,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: TIGHT_GAP,
   },
-  badgeRejected: {
-    backgroundColor: '#FBE3E1',
-  },
-  badgeText: {
-    ...typography.caption,
-    fontWeight: '700',
-  },
-  badgeTextAccepted: {
-    color: '#14603A',
-  },
-  badgeTextRejected: {
-    color: '#A32119',
-  },
-  row: {
+  saranCaption: typography.caption,
+  saranValue: typography.heading,
+  infoList: { gap: spacing.sm },
+  infoRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    columnGap: spacing.md,
   },
-  label: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  value: {
-    ...typography.caption,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  explanationBox: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.sm,
-    padding: spacing.sm,
-  },
-  explanationText: {
-    ...typography.caption,
-    color: colors.text,
-    fontStyle: 'italic',
-  },
-  disclaimer: {
-    ...typography.caption,
-    fontSize: 11,
-    color: colors.textMuted,
-    marginTop: spacing.xs,
-  },
+  infoLabel: { ...typography.body, color: colors.textMuted },
+  infoValue: { ...typography.body, fontWeight: typography.label.fontWeight, color: colors.text },
+  body: { ...typography.body, color: colors.text },
+  muted: { ...typography.caption, color: colors.textMuted },
 });

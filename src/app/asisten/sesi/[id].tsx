@@ -1,5 +1,5 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { SessionInfo } from '@/components/session/SessionInfo';
@@ -13,15 +13,12 @@ import { Screen } from '@/components/ui/Screen';
 import { DeleteSessionSheet } from '@/features/asisten/DeleteSessionSheet';
 import { goBackToList } from '@/features/asisten/goBackToList';
 import { RekapList } from '@/features/asisten/RekapList';
-import {
-  OFFLINE_ACTION_HINT,
-  STATUS_CHANGED_MESSAGE,
-  sessionErrorMessage,
-} from '@/features/asisten/sessionErrorMessage';
+import { STATUS_CHANGED_MESSAGE, sessionErrorMessage } from '@/features/asisten/sessionErrorMessage';
 import { SessionCodeCard } from '@/features/asisten/SessionCodeCard';
 import { takeSessionFlash } from '@/features/asisten/sessionFlash';
 import { StatusActionSheet } from '@/features/asisten/StatusActionSheet';
 import type { StatusAction } from '@/features/asisten/StatusActionSheet';
+import { OFFLINE_ACTION_HINT } from '@/features/asisten/writeErrorMessage';
 import {
   useAppStore,
   useIsOnline,
@@ -71,6 +68,14 @@ export default function AsistenDetailSesiScreen() {
 
   const session = useSessionById(sessionId);
   const rekap = useRekap(sessionId);
+  // Praktikan yang hadir lalu izinnya disetujui tetap di "Sudah hadir" saja (presensi menang);
+  // computeRekap memasukkannya ke kedua kelompok. Total tidak berubah.
+  const rekapView = useMemo(() => {
+    if (!rekap) return null;
+    const hadirIds = new Set(rekap.hadir.map((h) => h.user.id));
+    const izin = rekap.izin.filter((i) => !hadirIds.has(i.user.id));
+    return izin.length === rekap.izin.length ? rekap : { ...rekap, izin };
+  }, [rekap]);
   const izinList = useIzinBySession(sessionId);
   const isOnline = useIsOnline();
   const sessionsSync = useSyncState('sessions');
@@ -247,8 +252,8 @@ export default function AsistenDetailSesiScreen() {
             </Text>
             {session.status === 'scheduled' ? (
               <Text style={styles.sectionHint}>Rekap muncul setelah sesi dibuka.</Text>
-            ) : rekap ? (
-              <RekapList rekap={rekap} />
+            ) : rekapView ? (
+              <RekapList rekap={rekapView} />
             ) : null}
           </View>
 

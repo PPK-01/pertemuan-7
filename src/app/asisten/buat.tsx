@@ -9,14 +9,11 @@ import { LoadingState } from '@/components/ui/LoadingState';
 import { Screen } from '@/components/ui/Screen';
 import { SessionForm } from '@/features/asisten/SessionForm';
 import type { LockableField, SessionFormFeedback } from '@/features/asisten/SessionForm';
-import {
-  OFFLINE_ACTION_HINT,
-  STATUS_CHANGED_MESSAGE,
-  sessionErrorMessage,
-} from '@/features/asisten/sessionErrorMessage';
+import { STATUS_CHANGED_MESSAGE, sessionErrorMessage } from '@/features/asisten/sessionErrorMessage';
 import { setSessionFlash } from '@/features/asisten/sessionFlash';
 import { sessionToFormValues } from '@/features/asisten/sessionFormValidation';
 import type { SessionFormInput } from '@/features/asisten/sessionFormValidation';
+import { OFFLINE_ACTION_HINT } from '@/features/asisten/writeErrorMessage';
 import {
   useAppStore,
   useCurrentUser,

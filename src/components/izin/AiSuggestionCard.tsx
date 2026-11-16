@@ -104,6 +104,11 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 const DISCLAIMER = 'Saran AI hanya bahan pertimbangan. Keputusan tetap di tangan asisten.';
 
+// Ukuran tanpa padanan token: garis tepi tipis sama dengan Card/Banner, dan setengah spacing.xs
+// untuk jarak rapat (pola IzinRow).
+const HAIRLINE_BORDER = 1;
+const TIGHT_GAP = spacing.xs / 2;
+
 export function AiSuggestionCard({
   ai,
   onRetry,
@@ -150,9 +155,20 @@ export function AiSuggestionCard({
   const saranLabel = getSaranLabel(ai.saran);
   const kategoriLabel = getKategoriLabel(ai.kategori);
   const tone = SARAN_TONE[ai.saran] ?? colors.feedback.warning;
+  const sentimenLabel = getSentimenLabel(ai.sentimen);
+  // Card accessible menggabungkan isinya, jadi label memuat semua yang tampil (FR-26).
+  const a11yLabel = [
+    `Saran AI eksperimental: ${saranLabel}`,
+    `kategori ${kategoriLabel}`,
+    `sentimen teks ${sentimenLabel}.`,
+    ai.penjelasan ?? '',
+    DISCLAIMER,
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
-    <Card accessibilityLabel={`Saran AI eksperimental: ${saranLabel}, kategori ${kategoriLabel}`}>
+    <Card accessibilityLabel={a11yLabel}>
       <View style={styles.content}>
         <Header title="Saran AI" />
         <View style={[styles.saranBox, { backgroundColor: tone.bg, borderColor: tone.text }]}>
@@ -161,7 +177,7 @@ export function AiSuggestionCard({
         </View>
         <View style={styles.infoList}>
           <InfoRow label="Kategori" value={kategoriLabel} />
-          <InfoRow label="Sentimen teks (eksperimental)" value={getSentimenLabel(ai.sentimen)} />
+          <InfoRow label="Sentimen teks (eksperimental)" value={sentimenLabel} />
         </View>
         {ai.penjelasan ? <Text style={styles.muted}>{ai.penjelasan}</Text> : null}
         <Text style={styles.muted}>{DISCLAIMER}</Text>
@@ -181,18 +197,18 @@ const styles = StyleSheet.create({
   },
   title: { ...typography.heading, color: colors.text, flexShrink: 1 },
   tag: {
-    borderWidth: 1,
+    borderWidth: HAIRLINE_BORDER,
     borderColor: colors.borderStrong,
     borderRadius: radius.full,
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs / 2,
+    paddingVertical: TIGHT_GAP,
   },
-  tagText: { ...typography.caption, color: colors.textMuted, fontWeight: '600' },
+  tagText: { ...typography.caption, color: colors.textMuted, fontWeight: typography.label.fontWeight },
   saranBox: {
-    borderWidth: 1,
+    borderWidth: HAIRLINE_BORDER,
     borderRadius: radius.md,
     padding: spacing.md,
-    gap: spacing.xs / 2,
+    gap: TIGHT_GAP,
   },
   saranCaption: typography.caption,
   saranValue: typography.heading,
@@ -204,7 +220,7 @@ const styles = StyleSheet.create({
     columnGap: spacing.md,
   },
   infoLabel: { ...typography.body, color: colors.textMuted },
-  infoValue: { ...typography.body, fontWeight: '600', color: colors.text },
+  infoValue: { ...typography.body, fontWeight: typography.label.fontWeight, color: colors.text },
   body: { ...typography.body, color: colors.text },
   muted: { ...typography.caption, color: colors.textMuted },
 });

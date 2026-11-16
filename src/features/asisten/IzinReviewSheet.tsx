@@ -9,6 +9,11 @@ import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 
+// Ukuran tanpa padanan token: garis tepi tipis sama dengan Banner, dan setengah spacing.xs
+// untuk jarak rapat nama dan sesi (pola IzinRow).
+const HAIRLINE_BORDER = 1;
+const TIGHT_GAP = spacing.xs / 2;
+
 export type ReviewDecision = 'approved' | 'rejected';
 
 /** Batas catatan keputusan (SRS §4.2). */
@@ -142,14 +147,14 @@ export function IzinReviewSheet({
 }
 
 const styles = StyleSheet.create({
-  summary: { gap: spacing.xs / 2 },
+  summary: { gap: TIGHT_GAP },
   name: { ...typography.label, color: colors.text },
   session: { ...typography.caption, color: colors.textMuted },
   body: { ...typography.body, color: colors.text },
   warning: {
     backgroundColor: colors.feedback.warning.bg,
     borderColor: colors.feedback.warning.text,
-    borderWidth: 1,
+    borderWidth: HAIRLINE_BORDER,
     borderRadius: radius.md,
     padding: spacing.md,
   },

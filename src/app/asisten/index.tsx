@@ -55,6 +55,8 @@ const PLUS_STROKE_LENGTH = 14;
 const PLUS_STROKE_WIDTH = 2.5;
 
 const SESSIONS_SYNC_KEYS = ['sessions'] as const;
+// Badge pintasan Izin bergantung pada listener izin.
+const IZIN_SYNC_KEYS = ['izin'] as const;
 
 function PlusIcon() {
   return (
@@ -78,6 +80,7 @@ export default function AsistenHomeScreen() {
   const sessionsRetry = useSyncRetry(SESSIONS_SYNC_KEYS);
   const izinList = useIzinForAsisten();
   const izinSync = useSyncState('izin');
+  const izinRetry = useSyncRetry(IZIN_SYNC_KEYS);
 
   const [filter, setFilter] = useState<SessionFilter>('all');
   const [keluarVisible, setKeluarVisible] = useState(false);
@@ -183,6 +186,15 @@ export default function AsistenHomeScreen() {
                     <KelasShortcut onPress={() => router.push('/asisten/kelas')} />
                   </View>
                 </View>
+
+                {izinRetry.visible ? (
+                  <SyncErrorState
+                    compact
+                    message={izinRetry.message}
+                    onRetry={izinRetry.retry}
+                    retrying={izinRetry.retrying}
+                  />
+                ) : null}
 
                 <View
                   role="radiogroup"

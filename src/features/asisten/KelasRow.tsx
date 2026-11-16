@@ -8,27 +8,12 @@ import type { KelasPraktikum } from '@/types';
 
 export type KelasRowProps = {
   kelas: Pick<KelasPraktikum, 'praktikum' | 'kelas'>;
-  /** Ada = baris bisa ditekan untuk membuka form ubah. */
-  onPress?: () => void;
+  /** Membuka form ubah kelas ini. */
+  onPress: () => void;
 };
 
 /** Satu baris daftar kelas praktikum. */
 export function KelasRow({ kelas, onPress }: KelasRowProps) {
-  const content = (
-    <View style={styles.text}>
-      <Text style={styles.praktikum}>{kelas.praktikum}</Text>
-      <Text style={styles.kelas}>{`Kelas ${kelas.kelas}`}</Text>
-    </View>
-  );
-
-  if (!onPress) {
-    return (
-      <View accessible aria-label={`${kelas.praktikum}, Kelas ${kelas.kelas}`} style={styles.row}>
-        {content}
-      </View>
-    );
-  }
-
   return (
     <Pressable
       onPress={onPress}
@@ -36,7 +21,10 @@ export function KelasRow({ kelas, onPress }: KelasRowProps) {
       aria-label={`${kelas.praktikum}, Kelas ${kelas.kelas}. Ubah atau hapus`}
       style={({ pressed }) => [styles.row, pressed && { opacity: PRESSED_OPACITY }]}
     >
-      {content}
+      <View style={styles.text}>
+        <Text style={styles.praktikum}>{kelas.praktikum}</Text>
+        <Text style={styles.kelas}>{`Kelas ${kelas.kelas}`}</Text>
+      </View>
       <Text style={styles.hint}>Ubah</Text>
     </Pressable>
   );

@@ -6,8 +6,8 @@ import type { SyncKey } from '@/store/appStore';
 
 /**
  * Batas tunggu tombol "Coba lagi" bila listener tidak kunjung siap atau gagal, mis. Firestore
- * menunggu koneksi tanpa memanggil callback. Setelahnya tombol bisa ditekan lagi. Sama dengan
- * timeout tulis 10 detik di SRS.
+ * menunggu koneksi tanpa memanggil callback. Setelahnya spinner berhenti dan tombol bisa
+ * ditekan lagi. Sama dengan timeout tulis 10 detik di SRS.
  */
 export const RETRY_TIMEOUT_MS = 10_000;
 
@@ -16,7 +16,7 @@ export const SYNC_ERROR_OFFLINE_MESSAGE =
   'Gagal memuat data karena tidak ada koneksi internet. Coba lagi setelah tersambung.';
 
 export type SyncRetry = {
-  /** Ada listener berstatus error, atau percobaan ulang sedang berjalan. */
+  /** Ada listener berstatus error, atau percobaan ulang belum selesai. */
   visible: boolean;
   retrying: boolean;
   message: string;
@@ -25,48 +25,53 @@ export type SyncRetry = {
 
 /**
  * State "Coba lagi" untuk listener `keys` (NFR-02). `keys` sebaiknya konstanta di luar
- * komponen. Satu listener error dipasang ulang dengan `retrySync(key)`; bila beberapa error
- * sekaligus, `retrySync()` tanpa key memasang ulang semua yang error.
+ * komponen. Hanya listener milik `keys` yang error yang dipasang ulang, masing-masing dengan
+ * `retrySync(key)`, agar tombol di satu bagian layar tidak memasang ulang listener bagian lain.
  *
- * `retrying` lokal karena store hanya menyimpan status listener: kembali false begitu tidak
- * ada key yang 'loading' (berhasil atau gagal lagi), atau setelah RETRY_TIMEOUT_MS. Selama
- * true tombol menampilkan spinner sehingga tekanan beruntun saat offline tidak memasang ulang
- * listener berkali-kali.
+ * Store hanya menyimpan status listener, jadi key yang sedang dicoba ulang disimpan lokal.
+ * Selesai begitu key itu tidak lagi 'loading' (berhasil atau gagal lagi). Bila masih 'loading'
+ * setelah RETRY_TIMEOUT_MS, spinner berhenti tetapi pesan dan tombol tetap tampil agar asisten
+ * bisa mencoba lagi. Selama spinner berjalan tekanan beruntun diabaikan.
  */
 export function useSyncRetry(keys: readonly SyncKey[]): SyncRetry {
   const statuses = useAppStore(useShallow((state) => keys.map((key) => state.sync[key])));
   const retrySync = useAppStore((state) => state.retrySync);
   const isOnline = useIsOnline();
-  const [retrying, setRetrying] = useState(false);
+  const [pendingKeys, setPendingKeys] = useState<readonly SyncKey[] | null>(null);
+  const [timedOut, setTimedOut] = useState(false);
 
   const errorKeys = useMemo(
     () => keys.filter((_, index) => statuses[index] === 'error'),
     [keys, statuses],
   );
-  const anyLoading = statuses.includes('loading');
+  const pendingLoading =
+    pendingKeys !== null &&
+    keys.some((key, index) => pendingKeys.includes(key) && statuses[index] === 'loading');
 
   useEffect(() => {
-    if (retrying && !anyLoading) setRetrying(false);
-  }, [retrying, anyLoading]);
+    if (pendingKeys !== null && !pendingLoading) setPendingKeys(null);
+  }, [pendingKeys, pendingLoading]);
 
   useEffect(() => {
-    if (!retrying) return;
-    const timer = setTimeout(() => setRetrying(false), RETRY_TIMEOUT_MS);
+    if (pendingKeys === null) return;
+    const timer = setTimeout(() => setTimedOut(true), RETRY_TIMEOUT_MS);
     return () => clearTimeout(timer);
-  }, [retrying]);
+  }, [pendingKeys]);
+
+  const retrying = pendingLoading && !timedOut;
 
   const retry = useCallback(() => {
-    if (retrying || errorKeys.length === 0) return;
-    setRetrying(true);
-    if (errorKeys.length === 1) {
-      retrySync(errorKeys[0]);
-    } else {
-      retrySync();
-    }
-  }, [retrying, errorKeys, retrySync]);
+    if (retrying) return;
+    // Listener yang macet di 'loading' setelah batas waktu ikut dicoba lagi.
+    const targets = errorKeys.length > 0 ? errorKeys : (pendingKeys ?? []);
+    if (targets.length === 0) return;
+    setTimedOut(false);
+    setPendingKeys([...targets]);
+    targets.forEach((key) => retrySync(key));
+  }, [retrying, errorKeys, pendingKeys, retrySync]);
 
   return {
-    visible: errorKeys.length > 0 || retrying,
+    visible: errorKeys.length > 0 || pendingLoading,
     retrying,
     message: isOnline ? SYNC_ERROR_MESSAGE : SYNC_ERROR_OFFLINE_MESSAGE,
     retry,

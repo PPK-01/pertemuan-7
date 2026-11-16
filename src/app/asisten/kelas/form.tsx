@@ -217,11 +217,25 @@ export default function AsistenKelasFormScreen() {
     );
   }
 
+  // Form tampil tetapi listener kelas gagal: cek pasangan unik memakai data yang mungkin usang.
+  const staleNotice =
+    kelasRetry.visible && (!isEdit || target) ? (
+      <SyncErrorState
+        compact
+        message={kelasRetry.message}
+        onRetry={kelasRetry.retry}
+        retrying={kelasRetry.retrying}
+      />
+    ) : null;
+
   return (
     <View style={styles.container}>
       <AppBar subtitle={isEdit ? 'Ubah kelas' : 'Tambah kelas'} canGoBack onGoBack={goBack} />
       <Screen edges={['left', 'right', 'bottom']}>
-        <View style={styles.content}>{body}</View>
+        <View style={styles.content}>
+          {staleNotice}
+          {body}
+        </View>
       </Screen>
     </View>
   );
@@ -232,6 +246,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
+    gap: spacing.md,
     paddingVertical: spacing.md,
   },
   editContent: {

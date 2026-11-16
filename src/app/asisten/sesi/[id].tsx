@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
+import { goBackToList } from '@/features/asisten/goBackToList';
 import { RekapList } from '@/features/asisten/RekapList';
 import { StatusActionSheet } from '@/features/asisten/StatusActionSheet';
 import type { StatusAction } from '@/features/asisten/StatusActionSheet';
@@ -24,9 +25,6 @@ import type { SessionStatus } from '@/types';
 type Feedback = { id: number; tone: 'success' | 'danger' | 'info'; message: string };
 
 const STATUS_CHANGED_MESSAGE = 'Status sesi sudah berubah. Tampilan sudah diperbarui.';
-
-// Deep link langsung ke layar ini tidak punya riwayat; tanpa fallback tombol kembali diam atau keluar.
-const goBackToList = () => (router.canGoBack() ? router.back() : router.replace('/asisten'));
 
 const SUCCESS_MESSAGE: Record<StatusAction, string> = {
   open: 'Sesi dibuka',

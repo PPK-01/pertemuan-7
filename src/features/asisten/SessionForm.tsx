@@ -54,6 +54,10 @@ type ChoiceGroupProps = {
   hint?: string;
 };
 
+// Panjang maksimum isian DD/MM/YYYY dan HH.MM.
+const TANGGAL_MAX_LENGTH = 10;
+const JAM_MAX_LENGTH = 5;
+
 // Urutan pilihan stabil apa pun urutan dokumen kelasPraktikum dari listener.
 const byName = (a: string, b: string) => a.localeCompare(b, 'id');
 
@@ -223,7 +227,7 @@ export function SessionForm({
           hint={isLocked('tanggal') ? lockedHint : 'Contoh: 28/10/2026'}
           error={errors.tanggal}
           keyboardType="numeric"
-          maxLength={10}
+          maxLength={TANGGAL_MAX_LENGTH}
           disabled={isLocked('tanggal')}
         />
         <TextField
@@ -233,7 +237,7 @@ export function SessionForm({
           hint={isLocked('jamMulai') ? lockedHint : 'Contoh: 09.00'}
           error={errors.jamMulai}
           keyboardType="numeric"
-          maxLength={5}
+          maxLength={JAM_MAX_LENGTH}
           disabled={isLocked('jamMulai')}
         />
         <TextField
@@ -243,7 +247,7 @@ export function SessionForm({
           hint="Contoh: 11.00"
           error={errors.jamSelesai}
           keyboardType="numeric"
-          maxLength={5}
+          maxLength={JAM_MAX_LENGTH}
         />
       </View>
 

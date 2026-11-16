@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { AppBar } from '@/components/ui/AppBar';
 import { Banner } from '@/components/ui/Banner';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { LoadingState } from '@/components/ui/LoadingState';
 import { Screen } from '@/components/ui/Screen';
 import { SessionForm } from '@/features/asisten/SessionForm';
 import type { LockableField, SessionFormFeedback } from '@/features/asisten/SessionForm';
@@ -16,7 +17,13 @@ import {
 import { setSessionFlash } from '@/features/asisten/sessionFlash';
 import { sessionToFormValues } from '@/features/asisten/sessionFormValidation';
 import type { SessionFormInput } from '@/features/asisten/sessionFormValidation';
-import { useAppStore, useCurrentUser, useIsOnline, useSessionById } from '@/store/appStore';
+import {
+  useAppStore,
+  useCurrentUser,
+  useIsOnline,
+  useSessionById,
+  useSyncState,
+} from '@/store/appStore';
 import { spacing } from '@/theme/spacing';
 import type { Session } from '@/types';
 
@@ -42,6 +49,7 @@ export default function AsistenBuatSesiScreen() {
   const currentUser = useCurrentUser();
   const isOnline = useIsOnline();
   const session = useSessionById(editId ?? '');
+  const sessionsSync = useSyncState('sessions');
   const createSession = useAppStore((state) => state.createSession);
   const updateSession = useAppStore((state) => state.updateSession);
   const [submitting, setSubmitting] = useState(false);
@@ -115,6 +123,9 @@ export default function AsistenBuatSesiScreen() {
         disabledHint={disabledHint}
       />
     );
+  } else if (!session && sessionsSync === 'loading') {
+    // Refresh atau deep link: daftar sesi belum termuat, belum tentu sesinya tidak ada.
+    body = <LoadingState label="Memuat sesi…" />;
   } else if (!session) {
     body = (
       <EmptyState

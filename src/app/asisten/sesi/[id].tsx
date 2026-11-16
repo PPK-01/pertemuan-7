@@ -22,7 +22,6 @@ import {
 import { takeSessionFlash } from '@/features/asisten/sessionFlash';
 import { StatusActionSheet } from '@/features/asisten/StatusActionSheet';
 import type { StatusAction } from '@/features/asisten/StatusActionSheet';
-import { readStatusActionResult } from '@/features/asisten/statusActionResult';
 import {
   useAppStore,
   useIsOnline,
@@ -127,17 +126,24 @@ export default function AsistenDetailSesiScreen() {
   };
 
   const handleStatusConfirm = async () => {
+    if (pendingRef.current) return;
     const action = statusAction;
-    closeSheet();
+    pendingRef.current = true;
+    setPending(true);
+
     const actionFn = action === 'open' ? openSession : closeSession;
-    const outcome = await readStatusActionResult(actionFn(session.id));
-    if (outcome.kind === 'success') {
-      setFeedback({ tone: 'success', message: SUCCESS_MESSAGE[action] });
-    } else if (outcome.kind === 'stale') {
-      setFeedback({ tone: 'info', message: STATUS_CHANGED_MESSAGE });
-    } else {
-      setFeedback({ tone: 'danger', message: outcome.message });
-    }
+    const res = await actionFn(session.id);
+
+    pendingRef.current = false;
+    setPending(false);
+    setSheet(null);
+    // Transisi yang sudah tidak berlaku datang sebagai CONFLICT dari pra-cek store,
+    // dan sessionErrorMessage memetakannya ke STATUS_CHANGED_MESSAGE.
+    setFeedback(
+      res.ok
+        ? { tone: 'success', message: SUCCESS_MESSAGE[action] }
+        : { tone: 'danger', message: sessionErrorMessage(res.code, 'status') },
+    );
   };
 
   const handleDeleteConfirm = async () => {
@@ -193,12 +199,22 @@ export default function AsistenDetailSesiScreen() {
             />
           ) : null}
 
-          {session.status === 'scheduled' ? (
-            <Button label="Buka sesi" onPress={() => showSheet('open')} />
-          ) : session.status === 'open' ? (
-            <Button label="Tutup sesi" variant="danger" onPress={() => showSheet('close')} />
-          ) : feedback ? null : (
-            <Banner tone="info" message="Sesi sudah ditutup." />
+          {session.status === 'closed' ? (
+            feedback ? null : <Banner tone="info" message="Sesi sudah ditutup." />
+          ) : (
+            <View style={styles.actionGroup}>
+              {session.status === 'scheduled' ? (
+                <Button label="Buka sesi" disabled={!isOnline} onPress={() => showSheet('open')} />
+              ) : (
+                <Button
+                  label="Tutup sesi"
+                  variant="danger"
+                  disabled={!isOnline}
+                  onPress={() => showSheet('close')}
+                />
+              )}
+              {isOnline ? null : <Text style={styles.actionHint}>{OFFLINE_ACTION_HINT}</Text>}
+            </View>
           )}
 
           <View style={styles.section}>
@@ -229,6 +245,8 @@ export default function AsistenDetailSesiScreen() {
             visible={sheet?.kind === 'open' || sheet?.kind === 'close'}
             action={statusAction}
             kelas={session.kelas}
+            loading={pending}
+            disabled={!isOnline}
             onConfirm={handleStatusConfirm}
             onClose={closeSheet}
           />

@@ -12,6 +12,10 @@ export type StatusActionSheetProps = {
   visible: boolean;
   action: StatusAction;
   kelas: Kelas;
+  /** Tombol konfirmasi menampilkan spinner dan sheet tidak bisa ditutup selama menunggu. */
+  loading?: boolean;
+  /** Mis. offline; tombol konfirmasi nonaktif. */
+  disabled?: boolean;
   onConfirm: () => void;
   onClose: () => void;
 };
@@ -20,6 +24,8 @@ export function StatusActionSheet({
   visible,
   action,
   kelas,
+  loading = false,
+  disabled = false,
   onConfirm,
   onClose,
 }: StatusActionSheetProps) {
@@ -34,8 +40,10 @@ export function StatusActionSheet({
         label: isOpen ? 'Buka sesi' : 'Tutup sesi',
         variant: isOpen ? 'primary' : 'danger',
         onPress: onConfirm,
+        loading,
+        disabled,
       }}
-      secondaryAction={{ label: 'Batal', onPress: onClose }}
+      secondaryAction={{ label: 'Batal', onPress: onClose, disabled: loading }}
     >
       <Text style={styles.body}>
         {isOpen

@@ -65,10 +65,6 @@ export type { SyncKey, SyncStatus };
 export type AppStoreState = {
   authStatus: 'loading' | 'signedOut' | 'signedIn';
   currentUser: User | null;
-  /** @deprecated Gunakan currentUser.role */
-  role: Role | null;
-  /** @deprecated Gunakan currentUser.id */
-  currentUserId: string | null;
   isOnline: boolean;
   sync: Record<SyncKey, SyncStatus>;
 
@@ -84,8 +80,6 @@ export type AppStoreState = {
   setAuthStatus: (status: 'loading' | 'signedOut' | 'signedIn') => void;
   setSyncStatus: (key: SyncKey, status: SyncStatus) => void;
   setSessionCode: (sessionId: string, code: string) => void;
-  /** @deprecated Gunakan logout() */
-  resetIdentity: () => void;
 
   // Aksi Auth (FR-01, FR-13 s.d. FR-15)
   initAuth: () => () => void;
@@ -97,7 +91,7 @@ export type AppStoreState = {
   retrySync: (key?: SyncKey) => void;
 
   // Aksi Sesi & Kelas (FR-04 s.d. FR-06, FR-18 s.d. FR-20, SRS v2.2 §3.4)
-  createSession: (input: CreateSessionInput) => Promise<Result<Session>> & { id: string };
+  createSession: (input: CreateSessionInput) => Promise<Result<Session>>;
   updateSession: (id: string, patch: Partial<Session>) => Promise<Result>;
   deleteSession: (id: string) => Promise<Result>;
   openSession: (id: string) => Promise<Result>;
@@ -136,8 +130,6 @@ function getSyncDelegate(get: () => AppStoreState, set: (partial: Partial<AppSto
 export const useAppStore = create<AppStoreState>()((set, get) => ({
   authStatus: 'loading',
   currentUser: null,
-  role: null,
-  currentUserId: null,
   isOnline: connectionService.isConnected,
   sync: {
     sessions: 'idle',
@@ -158,8 +150,6 @@ export const useAppStore = create<AppStoreState>()((set, get) => ({
   setCurrentUser: (user) => {
     set({
       currentUser: user,
-      role: user?.role ?? null,
-      currentUserId: user?.id ?? null,
       authStatus: user ? 'signedIn' : 'signedOut',
     });
     if (user) {
@@ -176,10 +166,6 @@ export const useAppStore = create<AppStoreState>()((set, get) => ({
   },
 
   setAuthStatus: (authStatus) => set({ authStatus }),
-
-  resetIdentity: () => {
-    get().logout();
-  },
 
   setSyncStatus: (key, status) => {
     set((state) => ({
@@ -230,15 +216,10 @@ export const useAppStore = create<AppStoreState>()((set, get) => ({
   createSession: (input) => {
     // C-2: Sesi dibuat dengan id final Firestore yang konsisten sejak awal
     const finalSessionId = createId('ses');
-
-    const promise = withWriteGuard(async () => {
+    return withWriteGuard(async () => {
       const res = await svcCreateSession({ ...input, id: finalSessionId });
       return res;
-    }) as Promise<Result<Session>> & { id: string };
-
-    // Kompatibilitas dengan buat.tsx sebelum E-06 selesai: id sinkron sama persis dengan id dokumen Firestore final
-    promise.id = finalSessionId;
-    return promise;
+    });
   },
 
   updateSession: async (id, patch) => {
@@ -358,9 +339,20 @@ export const useAppStore = create<AppStoreState>()((set, get) => ({
   },
 }));
 
-// O-3: Pasang pemantauan status koneksi secara global sejak awal pembentukan store
+// O-3 & FR-29: Pasang pemantauan status koneksi secara global dan pasang ulang otomatis listener yang error saat kembali online
 connectionService.subscribe((isConnected) => {
   useAppStore.setState({ isOnline: isConnected });
+  if (isConnected) {
+    const store = useAppStore.getState();
+    const user = store.currentUser;
+    if (user) {
+      (Object.keys(store.sync) as SyncKey[]).forEach((key) => {
+        if (store.sync[key] === 'error') {
+          store.retrySync(key);
+        }
+      });
+    }
+  }
 });
 
 // ===== Fungsi Murni Rekapitulasi (FR-10, FR-28) =====
@@ -389,7 +381,7 @@ export function computeRekap(
       const att = attendanceByUser.get(user.id);
       return att ? [{ user, timestamp: att.timestamp }] : [];
     })
-    .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+    .sort((a, b) => (a.timestamp ?? '').localeCompare(b.timestamp ?? ''));
 
   const hadirIds = new Set(hadir.map((h) => h.user.id));
 

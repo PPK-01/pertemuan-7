@@ -4,11 +4,6 @@ export type Role = 'praktikan' | 'asisten';
 export type Kelas = string;
 export type Praktikum = string;
 
-/** @deprecated Sumber pilihan form Sprint 2 kini berasal dari useKelasList() */
-export const KELAS_LIST = ['A', 'B'] as const;
-/** @deprecated Sumber pilihan form Sprint 2 kini berasal dari useKelasList() */
-export const PRAKTIKUM_LIST = ['Pemrograman Mobile', 'Basis Data'] as const;
-
 /** Daftar status sesi praktikum. */
 export const SESSION_STATUS_LIST = ['scheduled', 'open', 'closed'] as const;
 export type SessionStatus = (typeof SESSION_STATUS_LIST)[number];
@@ -69,8 +64,6 @@ export type Session = {
   closedAt?: string;
   createdAt?: string;
   updatedAt?: string;
-  /** @deprecated Catatan: field `code` dipindah ke subdokumen private/code di server */
-  code?: string;
 };
 
 export type Attendance = {
@@ -96,10 +89,6 @@ export type AiResult =
       penjelasan: string;
       eksperimental: true;
       at: string;
-      /** @deprecated Sesuai SRS v2.2 §3.2 digantikan oleh saran. Dipertahankan untuk transisi E-10. */
-      keputusan?: 'diterima' | 'ditolak';
-      /** @deprecated Sesuai SRS v2.2 §3.2 digantikan oleh penjelasan. Dipertahankan untuk transisi E-10. */
-      alasan?: string;
     }
   | {
       state: 'failed';

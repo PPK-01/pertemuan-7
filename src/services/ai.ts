@@ -189,9 +189,6 @@ export async function classifyIzin(alasan: string): Promise<AiResult> {
       penjelasan: penjelasan.slice(0, 200),
       eksperimental: true,
       at,
-      // Kompatibilitas transisi untuk komponen UI sebelum E-10 selesai
-      keputusan: saran === 'ditolak' ? 'ditolak' : 'diterima',
-      alasan: penjelasan.slice(0, 200),
     };
   } catch (err) {
     console.warn('[services/ai] Exception inferensi:', err);

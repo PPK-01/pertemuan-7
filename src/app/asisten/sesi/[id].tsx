@@ -13,15 +13,12 @@ import { Screen } from '@/components/ui/Screen';
 import { DeleteSessionSheet } from '@/features/asisten/DeleteSessionSheet';
 import { goBackToList } from '@/features/asisten/goBackToList';
 import { RekapList } from '@/features/asisten/RekapList';
-import {
-  OFFLINE_ACTION_HINT,
-  STATUS_CHANGED_MESSAGE,
-  sessionErrorMessage,
-} from '@/features/asisten/sessionErrorMessage';
+import { STATUS_CHANGED_MESSAGE, sessionErrorMessage } from '@/features/asisten/sessionErrorMessage';
 import { SessionCodeCard } from '@/features/asisten/SessionCodeCard';
 import { takeSessionFlash } from '@/features/asisten/sessionFlash';
 import { StatusActionSheet } from '@/features/asisten/StatusActionSheet';
 import type { StatusAction } from '@/features/asisten/StatusActionSheet';
+import { OFFLINE_ACTION_HINT } from '@/features/asisten/writeErrorMessage';
 import {
   useAppStore,
   useIsOnline,

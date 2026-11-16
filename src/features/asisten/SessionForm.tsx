@@ -38,6 +38,8 @@ export type SessionFormProps = {
   lockedFields?: readonly LockableField[];
   /** Keterangan singkat di bawah kolom yang dikunci. */
   lockedHint?: string;
+  /** Ada = tombol "Kelola kelas" tampil saat belum ada kelas praktikum untuk dipilih. */
+  onManageKelas?: () => void;
 };
 
 export type LockableField = 'praktikum' | 'kelas' | 'tanggal' | 'jamMulai';
@@ -50,6 +52,8 @@ type ChoiceGroupProps = {
   error?: string;
   /** Pengganti chip saat belum ada pilihan, mis. daftar kelas masih kosong. */
   emptyText?: string;
+  /** Tombol kecil di bawah emptyText, mis. menuju daftar kelas praktikum. */
+  emptyAction?: { label: string; onPress: () => void };
   disabled?: boolean;
   hint?: string;
 };
@@ -69,6 +73,7 @@ function ChoiceGroup({
   onChange,
   error,
   emptyText,
+  emptyAction,
   disabled = false,
   hint,
 }: ChoiceGroupProps) {
@@ -76,7 +81,17 @@ function ChoiceGroup({
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
       {options.length === 0 && emptyText ? (
-        <Text style={styles.hint}>{emptyText}</Text>
+        <View style={styles.emptyChoice}>
+          <Text style={styles.hint}>{emptyText}</Text>
+          {emptyAction ? (
+            <Button
+              label={emptyAction.label}
+              onPress={emptyAction.onPress}
+              variant="secondary"
+              style={styles.emptyAction}
+            />
+          ) : null}
+        </View>
       ) : (
         <View role="radiogroup" aria-label={label} style={styles.chips}>
           {options.map((option) => (
@@ -115,6 +130,7 @@ export function SessionForm({
   initialValues,
   lockedFields = [],
   lockedHint,
+  onManageKelas,
 }: SessionFormProps) {
   const kelasList = useKelasList();
   const kelasSync = useSyncState('kelas');
@@ -189,6 +205,11 @@ export function SessionForm({
           onChange={setPraktikum}
           error={errors.praktikum}
           emptyText={noKelasText}
+          emptyAction={
+            onManageKelas && kelasSync !== 'loading'
+              ? { label: 'Kelola kelas', onPress: onManageKelas }
+              : undefined
+          }
           disabled={isLocked('praktikum')}
           hint={isLocked('praktikum') ? lockedHint : undefined}
         />
@@ -278,6 +299,8 @@ const styles = StyleSheet.create({
   field: { gap: spacing.sm },
   label: { ...typography.label, color: colors.text },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  emptyChoice: { gap: spacing.sm },
+  emptyAction: { alignSelf: 'flex-start' },
   hint: { ...typography.caption, color: colors.textMuted },
   error: { ...typography.caption, color: colors.feedback.danger.text },
   actions: { gap: spacing.md },

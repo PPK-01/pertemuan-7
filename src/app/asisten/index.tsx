@@ -19,6 +19,7 @@ import {
 } from '@/features/asisten/sessionFilterLabels';
 import type { SessionFilter } from '@/features/asisten/sessionFilterLabels';
 import { IzinShortcut } from '@/features/asisten/IzinShortcut';
+import { KelasShortcut } from '@/features/asisten/KelasShortcut';
 import { KeluarSheet } from '@/features/asisten/KeluarSheet';
 import { SessionListItem } from '@/features/asisten/SessionListItem';
 import {
@@ -42,6 +43,9 @@ const CENTER_BUTTON_RING = 3.5;
 const CENTER_LABEL_LINE_HEIGHT = 14;
 // Jarak label ke lingkaran; spacing.xs (4) terlalu renggang untuk bar bawah.
 const CENTER_LABEL_GAP = 2;
+// Lebar dasar tiap pintasan: dua pintasan berdampingan bila muat, bertumpuk di layar 360dp
+// agar keterangan "Perlu diperiksa" tidak terlipat.
+const SHORTCUT_BASIS = 200;
 // Garis pemisah bar bawah setebal 1 seperti border komponen lain, bukan hairline.
 const BAR_BORDER_WIDTH = 1;
 // Ikon plus digambar dari dua garis: kotak 20, garis 14 x 2,5 agar seimbang di lingkaran 54.
@@ -161,13 +165,20 @@ export default function AsistenHomeScreen() {
                   />
                 ) : null}
 
-                <IzinShortcut
-                  pendingCount={pendingIzinCount}
-                  countStatus={
-                    izinSync === 'error' ? 'error' : izinSync === 'ready' ? 'ready' : 'loading'
-                  }
-                  onPress={() => router.push('/asisten/izin')}
-                />
+                <View style={styles.shortcutRow}>
+                  <View style={styles.shortcutItem}>
+                    <IzinShortcut
+                      pendingCount={pendingIzinCount}
+                      countStatus={
+                        izinSync === 'error' ? 'error' : izinSync === 'ready' ? 'ready' : 'loading'
+                      }
+                      onPress={() => router.push('/asisten/izin')}
+                    />
+                  </View>
+                  <View style={styles.shortcutItem}>
+                    <KelasShortcut onPress={() => router.push('/asisten/kelas')} />
+                  </View>
+                </View>
 
                 <View
                   role="radiogroup"
@@ -248,6 +259,15 @@ const styles = StyleSheet.create({
   headerBlock: {
     gap: spacing.lg,
     marginBottom: spacing.lg,
+  },
+  shortcutRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  shortcutItem: {
+    flexGrow: 1,
+    flexBasis: SHORTCUT_BASIS,
   },
   tilesGrid: {
     flexDirection: 'row',

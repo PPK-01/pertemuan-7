@@ -115,6 +115,7 @@ export default function AsistenBuatSesiScreen() {
     body = (
       <SessionForm
         onSubmit={handleCreate}
+        onManageKelas={() => router.push('/asisten/kelas')}
         submitting={submitting}
         submitError={submitError}
         disabledHint={disabledHint}

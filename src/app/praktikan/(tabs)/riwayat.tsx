@@ -5,14 +5,18 @@ import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { AppBar } from '@/components/ui/AppBar';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { IdentityCard } from '@/components/ui/IdentityCard';
+import { LoadingState } from '@/components/ui/LoadingState';
 import { Screen } from '@/components/ui/Screen';
+import { SyncErrorState } from '@/components/ui/SyncErrorState';
 import { RiwayatItem } from '@/features/praktikan/RiwayatItem';
+import { useSyncRetry } from '@/features/asisten/useSyncRetry';
 import {
   useAppStore,
   useAttendanceByUser,
   useCurrentUser,
   useIzinByUser,
   useSessionsForUser,
+  useSyncState,
 } from '@/store/appStore';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
@@ -20,6 +24,8 @@ import { typography } from '@/theme/typography';
 import type { Attendance, Session } from '@/types';
 
 type RiwayatEntry = { session: Session; attendance: Attendance };
+
+const RIWAYAT_SYNC_KEYS = ['attendances', 'sessions'] as const;
 
 function ListSeparator() {
   return <View style={styles.separator} />;
@@ -32,6 +38,13 @@ export default function RiwayatScreen() {
   const sessions = useSessionsForUser(userId);
   const attendances = useAttendanceByUser(userId);
   const izinList = useIzinByUser(userId);
+
+  const attendancesSync = useSyncState('attendances');
+  const sessionsSync = useSyncState('sessions');
+  const riwayatRetry = useSyncRetry(RIWAYAT_SYNC_KEYS);
+  const syncError = attendancesSync === 'error' || sessionsSync === 'error';
+  const loadingInitial =
+    (attendancesSync === 'loading' || sessionsSync === 'loading') && attendances.length === 0;
 
   const approvedIzinCount = useMemo(
     () => izinList.filter((i) => i.status === 'approved').length,
@@ -48,7 +61,7 @@ export default function RiwayatScreen() {
         const attendance = attendanceBySession.get(session.id);
         return attendance ? [{ session, attendance }] : [];
       })
-      .sort((a, b) => b.attendance.timestamp.localeCompare(a.attendance.timestamp));
+      .sort((a, b) => (b.attendance.timestamp ?? '').localeCompare(a.attendance.timestamp ?? ''));
   }, [sessions, attendances]);
 
   async function handleLogout() {
@@ -98,6 +111,14 @@ export default function RiwayatScreen() {
                   onAction={handleLogout}
                 />
 
+                {riwayatRetry.visible ? (
+                  <SyncErrorState
+                    message={riwayatRetry.message}
+                    onRetry={riwayatRetry.retry}
+                    retrying={riwayatRetry.retrying}
+                  />
+                ) : null}
+
                 {/* Ringkasan Kehadiran & Izin (FR-11) */}
                 <View style={styles.summaryContainer}>
                   <View style={styles.summaryBox}>
@@ -115,14 +136,18 @@ export default function RiwayatScreen() {
               </View>
             }
             ListEmptyComponent={
-              <EmptyState
-                title="Belum ada presensi"
-                message="Kamu belum memiliki rekaman kehadiran. Masukkan kode 4 digit pada sesi praktikum yang sedang dibuka."
-                action={{
-                  label: 'Lihat Jadwal',
-                  onPress: () => router.push('/praktikan/jadwal'),
-                }}
-              />
+              syncError && entries.length === 0 ? null : loadingInitial ? (
+                <LoadingState label="Memuat riwayat presensi…" />
+              ) : (
+                <EmptyState
+                  title="Belum ada presensi"
+                  message="Kamu belum memiliki rekaman kehadiran. Masukkan kode 4 digit pada sesi praktikum yang sedang dibuka."
+                  action={{
+                    label: 'Lihat Jadwal',
+                    onPress: () => router.push('/praktikan/jadwal'),
+                  }}
+                />
+              )
             }
           />
         </View>

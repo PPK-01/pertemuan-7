@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { Screen } from '@/components/ui/Screen';
+import { SyncErrorState } from '@/components/ui/SyncErrorState';
 import { DeleteSessionSheet } from '@/features/asisten/DeleteSessionSheet';
 import { goBackToList } from '@/features/asisten/goBackToList';
 import { RekapList } from '@/features/asisten/RekapList';
@@ -18,6 +19,7 @@ import { SessionCodeCard } from '@/features/asisten/SessionCodeCard';
 import { takeSessionFlash } from '@/features/asisten/sessionFlash';
 import { StatusActionSheet } from '@/features/asisten/StatusActionSheet';
 import type { StatusAction } from '@/features/asisten/StatusActionSheet';
+import { useSyncRetry } from '@/features/asisten/useSyncRetry';
 import { OFFLINE_ACTION_HINT } from '@/features/asisten/writeErrorMessage';
 import {
   useAppStore,
@@ -57,6 +59,10 @@ function failureMessage(
   return sessionErrorMessage(code, action);
 }
 
+const SESSIONS_SYNC_KEYS = ['sessions'] as const;
+// Rekap dihitung dari presensi, izin, dan daftar praktikan; ketiganya listener terpisah.
+const REKAP_SYNC_KEYS = ['attendances', 'izin', 'users'] as const;
+
 const SUCCESS_MESSAGE: Record<StatusAction, string> = {
   open: 'Sesi dibuka',
   close: 'Sesi ditutup',
@@ -79,6 +85,8 @@ export default function AsistenDetailSesiScreen() {
   const izinList = useIzinBySession(sessionId);
   const isOnline = useIsOnline();
   const sessionsSync = useSyncState('sessions');
+  const sessionsRetry = useSyncRetry(SESSIONS_SYNC_KEYS);
+  const rekapRetry = useSyncRetry(REKAP_SYNC_KEYS);
   const openSession = useAppStore((state) => state.openSession);
   const closeSession = useAppStore((state) => state.closeSession);
   const deleteSession = useAppStore((state) => state.deleteSession);
@@ -131,6 +139,16 @@ export default function AsistenDetailSesiScreen() {
           ) : sessionsSync === 'loading' ? (
             // Refresh atau deep link: daftar sesi belum termuat, belum tentu sesinya tidak ada.
             <LoadingState label="Memuat sesi…" />
+          ) : sessionsRetry.visible ? (
+            // Listener gagal: sesinya mungkin ada, jadi jangan menyatakan tidak ditemukan.
+            <View style={styles.page}>
+              <SyncErrorState
+                message={sessionsRetry.message}
+                onRetry={sessionsRetry.retry}
+                retrying={sessionsRetry.retrying}
+              />
+              <Button label="Kembali ke daftar sesi" onPress={goToList} variant="secondary" />
+            </View>
           ) : (
             <EmptyState
               title="Sesi tidak ditemukan"
@@ -209,6 +227,16 @@ export default function AsistenDetailSesiScreen() {
         <View style={styles.page}>
           {feedback ? <Banner key={feedback.id} tone={feedback.tone} message={feedback.message} /> : null}
 
+          {/* Data terakhir tetap tampil; versi ringkas mengingatkan bahwa isinya mungkin usang. */}
+          {sessionsRetry.visible ? (
+            <SyncErrorState
+              compact
+              message={sessionsRetry.message}
+              onRetry={sessionsRetry.retry}
+              retrying={sessionsRetry.retrying}
+            />
+          ) : null}
+
           <Card>
             <SessionInfo session={session} />
           </Card>
@@ -252,9 +280,19 @@ export default function AsistenDetailSesiScreen() {
             </Text>
             {session.status === 'scheduled' ? (
               <Text style={styles.sectionHint}>Rekap muncul setelah sesi dibuka.</Text>
-            ) : rekapView ? (
-              <RekapList rekap={rekapView} />
-            ) : null}
+            ) : (
+              <>
+                {rekapRetry.visible ? (
+                  <SyncErrorState
+                    compact
+                    message={rekapRetry.message}
+                    onRetry={rekapRetry.retry}
+                    retrying={rekapRetry.retrying}
+                  />
+                ) : null}
+                {rekapView ? <RekapList rekap={rekapView} /> : null}
+              </>
+            )}
           </View>
 
           {/* FR-19: sesi yang pernah dibuka adalah arsip rekap, jadi hanya Dijadwalkan yang bisa dihapus. */}

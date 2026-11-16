@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Banner } from '@/components/ui/Banner';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
+import { SyncErrorState } from '@/components/ui/SyncErrorState';
 import { TextField } from '@/components/ui/TextField';
 import {
   RUANG_MAX_LENGTH,
@@ -15,6 +16,7 @@ import type {
   SessionFormInput,
   SessionFormValues,
 } from '@/features/asisten/sessionFormValidation';
+import { useSyncRetry } from '@/features/asisten/useSyncRetry';
 import { useKelasList, useSyncState } from '@/store/appStore';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -57,6 +59,8 @@ type ChoiceGroupProps = {
   disabled?: boolean;
   hint?: string;
 };
+
+const KELAS_SYNC_KEYS = ['kelas'] as const;
 
 // Panjang maksimum isian DD/MM/YYYY dan HH.MM.
 const TANGGAL_MAX_LENGTH = 10;
@@ -134,6 +138,7 @@ export function SessionForm({
 }: SessionFormProps) {
   const kelasList = useKelasList();
   const kelasSync = useSyncState('kelas');
+  const kelasRetry = useSyncRetry(KELAS_SYNC_KEYS);
   const [values, setValues] = useState<SessionFormValues>(
     () => initialValues ?? emptySessionFormValues(),
   );
@@ -193,11 +198,25 @@ export function SessionForm({
   }
 
   const noKelasText =
-    kelasSync === 'loading' ? 'Memuat daftar kelas praktikum…' : 'Belum ada kelas praktikum.';
+    kelasSync === 'loading'
+      ? 'Memuat daftar kelas praktikum…'
+      : kelasSync === 'error'
+        ? 'Daftar kelas praktikum belum termuat.'
+        : 'Belum ada kelas praktikum.';
 
   return (
     <View style={styles.form}>
       <View style={styles.fields}>
+        {/* Pilihan praktikum dan kelas berasal dari listener kelas; tanpa ini daftar kosong
+            terbaca seperti "Belum ada kelas praktikum". */}
+        {kelasRetry.visible ? (
+          <SyncErrorState
+            compact
+            message={kelasRetry.message}
+            onRetry={kelasRetry.retry}
+            retrying={kelasRetry.retrying}
+          />
+        ) : null}
         <ChoiceGroup
           label="Praktikum"
           options={praktikumOptions}
@@ -206,7 +225,7 @@ export function SessionForm({
           error={errors.praktikum}
           emptyText={noKelasText}
           emptyAction={
-            onManageKelas && kelasSync !== 'loading'
+            onManageKelas && kelasSync === 'ready'
               ? { label: 'Kelola kelas', onPress: onManageKelas }
               : undefined
           }

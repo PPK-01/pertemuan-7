@@ -7,12 +7,14 @@ import { Banner } from '@/components/ui/Banner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { Screen } from '@/components/ui/Screen';
+import { SyncErrorState } from '@/components/ui/SyncErrorState';
 import { SessionForm } from '@/features/asisten/SessionForm';
 import type { LockableField, SessionFormFeedback } from '@/features/asisten/SessionForm';
 import { STATUS_CHANGED_MESSAGE, sessionErrorMessage } from '@/features/asisten/sessionErrorMessage';
 import { setSessionFlash } from '@/features/asisten/sessionFlash';
 import { sessionToFormValues } from '@/features/asisten/sessionFormValidation';
 import type { SessionFormInput } from '@/features/asisten/sessionFormValidation';
+import { useSyncRetry } from '@/features/asisten/useSyncRetry';
 import { OFFLINE_ACTION_HINT } from '@/features/asisten/writeErrorMessage';
 import {
   useAppStore,
@@ -29,6 +31,8 @@ import type { Session } from '@/types';
 const OPEN_LOCKED_FIELDS: readonly LockableField[] = ['praktikum', 'kelas', 'tanggal', 'jamMulai'];
 const OPEN_LOCKED_HINT = 'Tidak bisa diubah saat sesi dibuka.';
 const UPDATE_SUCCESS_MESSAGE = 'Perubahan sesi disimpan.';
+
+const SESSIONS_SYNC_KEYS = ['sessions'] as const;
 
 const goToList = () => router.replace('/asisten');
 
@@ -47,6 +51,7 @@ export default function AsistenBuatSesiScreen() {
   const isOnline = useIsOnline();
   const session = useSessionById(editId ?? '');
   const sessionsSync = useSyncState('sessions');
+  const sessionsRetry = useSyncRetry(SESSIONS_SYNC_KEYS);
   const createSession = useAppStore((state) => state.createSession);
   const updateSession = useAppStore((state) => state.updateSession);
   const [submitting, setSubmitting] = useState(false);
@@ -124,6 +129,15 @@ export default function AsistenBuatSesiScreen() {
   } else if (!session && sessionsSync === 'loading') {
     // Refresh atau deep link: daftar sesi belum termuat, belum tentu sesinya tidak ada.
     body = <LoadingState label="Memuat sesi…" />;
+  } else if (!session && sessionsRetry.visible) {
+    // Listener gagal: sesinya mungkin ada, jadi jangan menyatakan tidak ditemukan.
+    body = (
+      <SyncErrorState
+        message={sessionsRetry.message}
+        onRetry={sessionsRetry.retry}
+        retrying={sessionsRetry.retrying}
+      />
+    );
   } else if (!session) {
     body = (
       <EmptyState

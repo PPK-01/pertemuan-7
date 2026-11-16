@@ -8,14 +8,18 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { Screen } from '@/components/ui/Screen';
+import { SyncErrorState } from '@/components/ui/SyncErrorState';
 import { takeFlash } from '@/features/asisten/flash';
 import { goBackToList } from '@/features/asisten/goBackToList';
 import { KELAS_FLASH_SCOPE } from '@/features/asisten/kelasErrorMessage';
 import { KelasRow } from '@/features/asisten/KelasRow';
+import { useSyncRetry } from '@/features/asisten/useSyncRetry';
 import { useKelasList, useSyncState } from '@/store/appStore';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import type { KelasPraktikum } from '@/types';
+
+const KELAS_SYNC_KEYS = ['kelas'] as const;
 
 function ListSeparator() {
   return <View style={styles.separator} />;
@@ -34,6 +38,7 @@ const openCreate = () => router.push('/asisten/kelas/form');
 export default function AsistenKelasListScreen() {
   const kelasList = useKelasList();
   const kelasSync = useSyncState('kelas');
+  const kelasRetry = useSyncRetry(KELAS_SYNC_KEYS);
   const [flash, setFlashState] = useState<Flash | null>(null);
 
   // Pesan sukses dari form kelas, diambil saat layar ini kembali fokus setelah router.back().
@@ -50,7 +55,7 @@ export default function AsistenKelasListScreen() {
   // jadi status muat hanya menggantikan daftar yang masih kosong.
   const loadingInitial =
     (kelasSync === 'idle' || kelasSync === 'loading') && kelasList.length === 0;
-  const syncError = kelasSync === 'error';
+  const syncError = kelasRetry.visible;
 
   return (
     <View style={styles.container}>
@@ -74,14 +79,18 @@ export default function AsistenKelasListScreen() {
               {flash ? <Banner key={flash.id} tone="success" message={flash.message} /> : null}
               <Button label="Tambah kelas" onPress={openCreate} />
               {syncError ? (
-                <Banner tone="danger" message="Gagal memuat data. Periksa koneksi lalu coba lagi." />
+                <SyncErrorState
+                  message={kelasRetry.message}
+                  onRetry={kelasRetry.retry}
+                  retrying={kelasRetry.retrying}
+                />
               ) : null}
             </View>
           }
           ListEmptyComponent={
-            loadingInitial ? (
+            syncError && kelasList.length === 0 ? null : loadingInitial ? (
               <LoadingState label="Memuat kelas praktikum…" />
-            ) : syncError ? null : (
+            ) : (
               <EmptyState
                 title="Belum ada kelas praktikum"
                 message="Kelas praktikum dipakai saat membuat sesi dan saat praktikan mendaftar."

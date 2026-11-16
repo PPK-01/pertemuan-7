@@ -4,11 +4,11 @@ import { FlatList, StyleSheet, View } from 'react-native';
 
 import { IzinRow } from '@/components/izin/IzinRow';
 import { AppBar } from '@/components/ui/AppBar';
-import { Banner } from '@/components/ui/Banner';
 import { Chip } from '@/components/ui/Chip';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { Screen } from '@/components/ui/Screen';
+import { SyncErrorState } from '@/components/ui/SyncErrorState';
 import { goBackToList } from '@/features/asisten/goBackToList';
 import {
   DEFAULT_IZIN_FILTER,
@@ -20,6 +20,7 @@ import {
 } from '@/features/asisten/izinFilterLabels';
 import type { IzinFilter } from '@/features/asisten/izinFilterLabels';
 import { getIzinSessionLabel, getPraktikanName } from '@/features/asisten/izinSessionLabel';
+import { useSyncRetry } from '@/features/asisten/useSyncRetry';
 import {
   useCurrentUser,
   useIzinForAsisten,
@@ -29,6 +30,9 @@ import {
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import type { Session } from '@/types';
+
+// Daftar izin bergantung pada listener izin, dan label sesinya pada listener sesi.
+const IZIN_LIST_SYNC_KEYS = ['izin', 'sessions'] as const;
 
 function ListSeparator() {
   return <View style={styles.separator} />;
@@ -43,6 +47,7 @@ export default function AsistenIzinListScreen() {
   const izinSync = useSyncState('izin');
   const sessions = useSessionsForUser(currentUser?.id ?? '');
   const sessionsSync = useSyncState('sessions');
+  const syncRetry = useSyncRetry(IZIN_LIST_SYNC_KEYS);
 
   const [filter, setFilter] = useState<IzinFilter>(DEFAULT_IZIN_FILTER);
 
@@ -71,7 +76,7 @@ export default function AsistenIzinListScreen() {
   // 'idle' berarti listener belum dipasang. Data terakhir tetap tampil saat offline (FR-29),
   // jadi status muat hanya menggantikan daftar yang masih kosong.
   const loadingInitial = (izinSync === 'idle' || izinSync === 'loading') && izinList.length === 0;
-  const syncError = izinSync === 'error';
+  const syncError = syncRetry.visible;
 
   const emptyAction =
     filter === 'all' ? undefined : { label: SHOW_ALL_IZIN_LABEL, onPress: () => setFilter('all') };
@@ -110,14 +115,18 @@ export default function AsistenIzinListScreen() {
               </View>
 
               {syncError ? (
-                <Banner tone="danger" message="Gagal memuat data. Periksa koneksi lalu coba lagi." />
+                <SyncErrorState
+                  message={syncRetry.message}
+                  onRetry={syncRetry.retry}
+                  retrying={syncRetry.retrying}
+                />
               ) : null}
             </View>
           }
           ListEmptyComponent={
-            loadingInitial ? (
+            syncError && izinList.length === 0 ? null : loadingInitial ? (
               <LoadingState />
-            ) : syncError && izinList.length === 0 ? null : (
+            ) : (
               <EmptyState title={IZIN_FILTER_EMPTY[filter]} action={emptyAction} />
             )
           }

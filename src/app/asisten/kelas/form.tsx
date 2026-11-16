@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { Screen } from '@/components/ui/Screen';
+import { SyncErrorState } from '@/components/ui/SyncErrorState';
 import { DeleteKelasSheet } from '@/features/asisten/DeleteKelasSheet';
 import { setFlash } from '@/features/asisten/flash';
 import { KELAS_FLASH_SCOPE, kelasErrorMessage } from '@/features/asisten/kelasErrorMessage';
@@ -16,6 +17,7 @@ import { KelasForm } from '@/features/asisten/KelasForm';
 import type { KelasFormFeedback } from '@/features/asisten/KelasForm';
 import { validateKelasForm } from '@/features/asisten/kelasValidation';
 import type { KelasFormInput } from '@/features/asisten/kelasValidation';
+import { useSyncRetry } from '@/features/asisten/useSyncRetry';
 import { OFFLINE_ACTION_HINT } from '@/features/asisten/writeErrorMessage';
 import { useAppStore, useIsOnline, useKelasList, useSyncState } from '@/store/appStore';
 import { colors } from '@/theme/colors';
@@ -26,6 +28,8 @@ import type { ErrorCode, KelasPraktikum } from '@/types';
 const CREATE_SUCCESS_MESSAGE = 'Kelas praktikum ditambahkan.';
 const UPDATE_SUCCESS_MESSAGE = 'Perubahan kelas disimpan.';
 const DELETE_SUCCESS_MESSAGE = 'Kelas praktikum dihapus.';
+
+const KELAS_SYNC_KEYS = ['kelas'] as const;
 
 const goToList = () => router.replace('/asisten/kelas');
 const goBack = () => (router.canGoBack() ? router.back() : goToList());
@@ -53,6 +57,7 @@ export default function AsistenKelasFormScreen() {
 
   const kelasList = useKelasList();
   const kelasSync = useSyncState('kelas');
+  const kelasRetry = useSyncRetry(KELAS_SYNC_KEYS);
   const isOnline = useIsOnline();
   const addKelas = useAppStore((state) => state.addKelas);
   const updateKelas = useAppStore((state) => state.updateKelas);
@@ -154,6 +159,15 @@ export default function AsistenKelasFormScreen() {
   } else if (!target && (kelasSync === 'idle' || kelasSync === 'loading')) {
     // Refresh atau deep link: daftar kelas belum termuat, belum tentu kelasnya tidak ada.
     body = <LoadingState label="Memuat kelas…" />;
+  } else if (!target && kelasRetry.visible) {
+    // Listener gagal: kelasnya mungkin ada, jadi jangan menyatakan tidak ditemukan.
+    body = (
+      <SyncErrorState
+        message={kelasRetry.message}
+        onRetry={kelasRetry.retry}
+        retrying={kelasRetry.retrying}
+      />
+    );
   } else if (!target) {
     body = (
       <EmptyState

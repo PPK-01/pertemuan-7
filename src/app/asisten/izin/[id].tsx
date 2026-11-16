@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { Screen } from '@/components/ui/Screen';
+import { SyncErrorState } from '@/components/ui/SyncErrorState';
 import { goBackToIzinList } from '@/features/asisten/goBackToList';
 import {
   IZIN_ALREADY_REVIEWED_MESSAGE,
@@ -24,6 +25,7 @@ import {
   getIzinSessionState,
   getPraktikanName,
 } from '@/features/asisten/izinSessionLabel';
+import { useSyncRetry } from '@/features/asisten/useSyncRetry';
 import { OFFLINE_ACTION_HINT, writeErrorMessage } from '@/features/asisten/writeErrorMessage';
 import {
   useAppStore,
@@ -40,6 +42,9 @@ import { formatDateTime } from '@/utils/time';
 
 // id membuat Banner di-mount ulang agar pesan yang sama tetap diumumkan pembaca layar.
 type Feedback = { id: number; tone: 'success' | 'danger' | 'info'; message: string };
+
+// Detail izin bergantung pada listener izin, dan label sesinya pada listener sesi.
+const IZIN_DETAIL_SYNC_KEYS = ['izin', 'sessions'] as const;
 
 const ORPHANED_MESSAGE = 'Sesi untuk izin ini sudah dihapus, jadi izin tidak perlu diperiksa.';
 
@@ -77,6 +82,7 @@ export default function AsistenDetailIzinScreen() {
   const izinSync = useSyncState('izin');
   const session = useSessionById(izin?.sessionId ?? '');
   const sessionsSync = useSyncState('sessions');
+  const syncRetry = useSyncRetry(IZIN_DETAIL_SYNC_KEYS);
   const isOnline = useIsOnline();
   const retryAi = useAppStore((state) => state.retryAi);
   const reviewIzin = useAppStore((state) => state.reviewIzin);
@@ -125,7 +131,11 @@ export default function AsistenDetailIzinScreen() {
           ) : izinSync === 'error' ? (
             // Listener gagal: izinnya mungkin ada, jadi jangan menyatakan tidak ditemukan.
             <View style={styles.body}>
-              <Banner tone="danger" message="Gagal memuat data. Periksa koneksi lalu coba lagi." />
+              <SyncErrorState
+                message={syncRetry.message}
+                onRetry={syncRetry.retry}
+                retrying={syncRetry.retrying}
+              />
               <Button label="Kembali" onPress={goBackToIzinList} variant="secondary" />
             </View>
           ) : (
@@ -238,6 +248,16 @@ export default function AsistenDetailIzinScreen() {
             <Text style={[styles.session, orphaned && styles.sessionMissing]}>{sessionLabel}</Text>
             <IzinStatusBadge status={izin.status} />
           </View>
+
+          {/* Data terakhir tetap tampil; versi ringkas mengingatkan bahwa isinya mungkin usang. */}
+          {syncRetry.visible ? (
+            <SyncErrorState
+              compact
+              message={syncRetry.message}
+              onRetry={syncRetry.retry}
+              retrying={syncRetry.retrying}
+            />
+          ) : null}
 
           <Card>
             <View style={styles.fields}>

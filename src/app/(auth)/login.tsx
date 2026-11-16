@@ -206,7 +206,8 @@ const styles = StyleSheet.create({
   tagline: {
     ...typography.body,
     fontSize: 15,
-    color: colors.textMuted,
+    color: colors.onPrimary,
+    opacity: 0.9,
     marginTop: spacing.xs,
     textAlign: 'center',
   },

@@ -1,12 +1,16 @@
-import { useMemo } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 
 import { AppBar } from '@/components/ui/AppBar';
 import { Banner } from '@/components/ui/Banner';
+import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { Screen } from '@/components/ui/Screen';
+import { takeFlash } from '@/features/asisten/flash';
 import { goBackToList } from '@/features/asisten/goBackToList';
+import { KELAS_FLASH_SCOPE } from '@/features/asisten/kelasErrorMessage';
 import { KelasRow } from '@/features/asisten/KelasRow';
 import { useKelasList, useSyncState } from '@/store/appStore';
 import { colors } from '@/theme/colors';
@@ -22,9 +26,23 @@ function byPraktikumThenKelas(a: KelasPraktikum, b: KelasPraktikum): number {
   return a.praktikum.localeCompare(b.praktikum, 'id') || a.kelas.localeCompare(b.kelas, 'id');
 }
 
+// id membuat Banner di-mount ulang agar pesan yang sama tetap diumumkan pembaca layar.
+type Flash = { id: number; message: string };
+
+const openCreate = () => router.push('/asisten/kelas/form');
+
 export default function AsistenKelasListScreen() {
   const kelasList = useKelasList();
   const kelasSync = useSyncState('kelas');
+  const [flash, setFlashState] = useState<Flash | null>(null);
+
+  // Pesan sukses dari form kelas, diambil saat layar ini kembali fokus setelah router.back().
+  useFocusEffect(
+    useCallback(() => {
+      const message = takeFlash(KELAS_FLASH_SCOPE);
+      if (message) setFlashState((prev) => ({ message, id: (prev?.id ?? 0) + 1 }));
+    }, []),
+  );
 
   const sortedKelas = useMemo(() => [...kelasList].sort(byPraktikumThenKelas), [kelasList]);
 
@@ -41,15 +59,24 @@ export default function AsistenKelasListScreen() {
         <FlatList
           data={sortedKelas}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <KelasRow kelas={item} />}
+          renderItem={({ item }) => (
+            <KelasRow
+              kelas={item}
+              onPress={() =>
+                router.push({ pathname: '/asisten/kelas/form', params: { id: item.id } })
+              }
+            />
+          )}
           ItemSeparatorComponent={ListSeparator}
           contentContainerStyle={styles.listContent}
           ListHeaderComponent={
-            syncError ? (
-              <View style={styles.headerBlock}>
+            <View style={styles.headerBlock}>
+              {flash ? <Banner key={flash.id} tone="success" message={flash.message} /> : null}
+              <Button label="Tambah kelas" onPress={openCreate} />
+              {syncError ? (
                 <Banner tone="danger" message="Gagal memuat data. Periksa koneksi lalu coba lagi." />
-              </View>
-            ) : null
+              ) : null}
+            </View>
           }
           ListEmptyComponent={
             loadingInitial ? (
@@ -58,6 +85,7 @@ export default function AsistenKelasListScreen() {
               <EmptyState
                 title="Belum ada kelas praktikum"
                 message="Kelas praktikum dipakai saat membuat sesi dan saat praktikan mendaftar."
+                action={{ label: 'Tambah kelas', onPress: openCreate }}
               />
             )
           }

@@ -126,11 +126,10 @@ export default function AsistenBuatSesiScreen() {
         disabledHint={disabledHint}
       />
     );
-  } else if (!session && sessionsSync === 'loading') {
-    // Refresh atau deep link: daftar sesi belum termuat, belum tentu sesinya tidak ada.
-    body = <LoadingState label="Memuat sesi…" />;
   } else if (!session && sessionsRetry.visible) {
-    // Listener gagal: sesinya mungkin ada, jadi jangan menyatakan tidak ditemukan.
+    // Listener gagal atau sedang dicoba ulang: sesinya mungkin ada, jadi jangan menyatakan
+    // tidak ditemukan. Dicek sebelum 'loading' agar "Coba lagi" tetap ada bila listener macet
+    // setelah dicoba ulang.
     body = (
       <SyncErrorState
         message={sessionsRetry.message}
@@ -138,6 +137,9 @@ export default function AsistenBuatSesiScreen() {
         retrying={sessionsRetry.retrying}
       />
     );
+  } else if (!session && sessionsSync === 'loading') {
+    // Refresh atau deep link: daftar sesi belum termuat, belum tentu sesinya tidak ada.
+    body = <LoadingState label="Memuat sesi…" />;
   } else if (!session) {
     body = (
       <EmptyState

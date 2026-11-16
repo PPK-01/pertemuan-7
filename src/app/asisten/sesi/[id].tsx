@@ -136,11 +136,10 @@ export default function AsistenDetailSesiScreen() {
           {pending ? (
             // Listener sudah membuang sesi yang sedang dihapus sebelum Result diterima.
             <LoadingState label="Menghapus sesi…" />
-          ) : sessionsSync === 'loading' ? (
-            // Refresh atau deep link: daftar sesi belum termuat, belum tentu sesinya tidak ada.
-            <LoadingState label="Memuat sesi…" />
           ) : sessionsRetry.visible ? (
-            // Listener gagal: sesinya mungkin ada, jadi jangan menyatakan tidak ditemukan.
+            // Listener gagal atau sedang dicoba ulang: sesinya mungkin ada, jadi jangan
+            // menyatakan tidak ditemukan. Dicek sebelum 'loading' agar "Coba lagi" tetap ada
+            // bila listener macet setelah dicoba ulang.
             <View style={styles.page}>
               <SyncErrorState
                 message={sessionsRetry.message}
@@ -149,6 +148,9 @@ export default function AsistenDetailSesiScreen() {
               />
               <Button label="Kembali ke daftar sesi" onPress={goToList} variant="secondary" />
             </View>
+          ) : sessionsSync === 'loading' ? (
+            // Refresh atau deep link: daftar sesi belum termuat, belum tentu sesinya tidak ada.
+            <LoadingState label="Memuat sesi…" />
           ) : (
             <EmptyState
               title="Sesi tidak ditemukan"

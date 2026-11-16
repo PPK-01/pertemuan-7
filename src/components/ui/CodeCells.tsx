@@ -82,14 +82,17 @@ const styles = StyleSheet.create({
     width: 38,
     height: 46,
     borderRadius: radius.md,
+    // TODO token: isian putih transparan di atas navy (usulan colors.onPrimarySubtle)
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1.5,
   },
   cellSignatureActive: {
     borderColor: colors.accent,
+    // TODO token: isian kuning aksen transparan di atas navy (usulan colors.accentSubtle)
     backgroundColor: 'rgba(255, 196, 0, 0.12)',
   },
   cellSignatureInactive: {
+    // TODO token: tepi sel tidak aktif di atas navy (usulan colors.onPrimaryBorder)
     borderColor: 'rgba(255, 255, 255, 0.25)',
   },
   cellDisplayNavy: {

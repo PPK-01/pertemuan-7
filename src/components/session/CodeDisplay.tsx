@@ -46,6 +46,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     borderWidth: 1,
+    // TODO token: garis tipis putih transparan di atas navy (usulan colors.onPrimarySubtle)
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   label: {

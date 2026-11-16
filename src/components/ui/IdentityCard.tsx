@@ -81,6 +81,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: radius.full,
+    // TODO token: isian putih transparan di atas navy (usulan colors.onPrimarySubtle)
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderWidth: 2,
     borderColor: colors.accent,
@@ -97,6 +98,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     borderRadius: radius.full,
     borderWidth: 1,
+    // TODO token: tepi tombol outline di atas navy (usulan colors.onPrimaryBorder)
     borderColor: 'rgba(255, 255, 255, 0.4)',
     alignItems: 'center',
     justifyContent: 'center',

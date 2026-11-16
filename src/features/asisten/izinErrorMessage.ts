@@ -13,6 +13,9 @@ export function izinReviewErrorMessage(code: ErrorCode): string {
   switch (code) {
     case 'CONFLICT':
       return IZIN_ALREADY_REVIEWED_MESSAGE;
+    case 'TIMEOUT':
+      // Tulis yang melewati batas waktu masih bisa tersimpan kemudian.
+      return 'Keputusan belum dapat dipastikan tersimpan. Periksa status izin sebelum mencoba lagi.';
     case 'NOT_FOUND':
       return 'Izin tidak ditemukan. Mungkin sudah dihapus.';
     default:

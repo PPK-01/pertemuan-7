@@ -41,6 +41,8 @@ import { formatDateTime } from '@/utils/time';
 // id membuat Banner di-mount ulang agar pesan yang sama tetap diumumkan pembaca layar.
 type Feedback = { id: number; tone: 'success' | 'danger' | 'info'; message: string };
 
+const ORPHANED_MESSAGE = 'Sesi untuk izin ini sudah dihapus, jadi izin tidak perlu diperiksa.';
+
 const SUCCESS_MESSAGE: Record<ReviewDecision, string> = {
   approved: 'Izin disetujui',
   rejected: 'Izin ditolak',
@@ -93,19 +95,23 @@ export default function AsistenDetailIzinScreen() {
     setFeedbackState((prev) => ({ ...next, id: (prev?.id ?? 0) + 1 }));
 
   const reviewable = isReviewable(izin?.status);
+  // Izin yatim: sesinya sudah dihapus. Izin tetap bisa dibuka, tetapi tidak diperiksa lagi
+  // karena tidak ada sesi yang rekapnya terpengaruh.
+  const orphaned = getIzinSessionState(session, sessionsSync) === 'deleted';
+  const canAct = reviewable && !orphaned;
 
-  // Izin diputuskan dari luar (asisten lain) selagi sheet terbuka: aksi di sheet sudah tidak
-  // berlaku, jadi sheet ditutup dan asisten diberi tahu. Selama aksi sendiri menunggu,
-  // perubahan status berasal dari aksi itu dan hasilnya dibaca dari Result.
+  // Izin diputuskan dari luar (asisten lain) atau sesinya dihapus selagi sheet terbuka: aksi
+  // di sheet sudah tidak berlaku, jadi sheet ditutup dan asisten diberi tahu. Selama aksi
+  // sendiri menunggu, perubahan status berasal dari aksi itu dan hasilnya dibaca dari Result.
   useEffect(() => {
-    if (!sheetOpen || pending || reviewable) return;
+    if (!sheetOpen || pending || canAct) return;
     setSheetOpen(false);
     setFeedbackState((prev) => ({
       tone: 'info',
-      message: IZIN_ALREADY_REVIEWED_MESSAGE,
+      message: reviewable ? ORPHANED_MESSAGE : IZIN_ALREADY_REVIEWED_MESSAGE,
       id: (prev?.id ?? 0) + 1,
     }));
-  }, [sheetOpen, pending, reviewable]);
+  }, [sheetOpen, pending, canAct, reviewable]);
 
   if (!izin) {
     // Deep link bisa tiba sebelum listener izin terisi; jangan langsung menyatakan tidak ditemukan.
@@ -136,26 +142,36 @@ export default function AsistenDetailIzinScreen() {
 
   const praktikanName = getPraktikanName(izin.userName);
   const sessionLabel = getIzinSessionLabel(session, sessionsSync);
-  // Izin yatim: sesinya sudah dihapus. Izin tetap bisa dibuka, tetapi tidak diperiksa lagi
-  // karena tidak ada sesi yang rekapnya terpengaruh.
-  const orphaned = getIzinSessionState(session, sessionsSync) === 'deleted';
-  const canAct = reviewable && !orphaned;
   const review = izin.review;
   const catatan = review?.catatan?.trim();
-  // pending_ai tanpa hasil = analisis belum selesai. Izin lama bisa saja pending_ai tetapi
-  // sudah memuat ai; hasil itu tetap ditampilkan.
-  const awaitingAi = !izin.ai && izin.status === 'pending_ai';
+  // Belum ada hasil AI pada izin yang masih bisa diperiksa: kartu menampilkan state memuat
+  // dan asisten bisa menjalankan analisis. Izin yang sudah diputuskan atau yatim tanpa hasil
+  // tidak menampilkan kartu, karena analisis tidak akan berjalan lagi.
+  const needsAi = !izin.ai && canAct;
   const aiSaran = izin.ai?.state === 'success' ? izin.ai.saran : undefined;
 
   const handleRunAi = async () => {
     if (retryingRef.current) return;
+    // Sama dengan pemeriksaan: saveAiResult selalu menulis pending_review, jadi tanpa pra-cek
+    // keputusan yang baru tiba dari perangkat lain bisa tertimpa di mode tanpa Firebase.
+    if (!isReviewable(latestIzinStatus(izin.id))) {
+      setFeedback({ tone: 'info', message: IZIN_ALREADY_REVIEWED_MESSAGE });
+      return;
+    }
     retryingRef.current = true;
     setRetrying(true);
     const res = await retryAi(izin.id);
     retryingRef.current = false;
     setRetrying(false);
     // Hasil sukses sudah terlihat di kartu lewat listener; hanya kegagalan tulis yang diumumkan.
-    if (!res.ok) setFeedback({ tone: 'danger', message: writeErrorMessage(res.code) });
+    if (res.ok) return;
+    const decidedElsewhere =
+      res.code === 'PERMISSION_DENIED' && !isReviewable(latestIzinStatus(izin.id));
+    setFeedback(
+      decidedElsewhere
+        ? { tone: 'info', message: IZIN_ALREADY_REVIEWED_MESSAGE }
+        : { tone: 'danger', message: writeErrorMessage(res.code) },
+    );
   };
 
   const openSheet = (next: ReviewDecision) => {
@@ -177,6 +193,11 @@ export default function AsistenDetailIzinScreen() {
       setFeedback({ tone: 'info', message: IZIN_ALREADY_REVIEWED_MESSAGE });
       return;
     }
+    if (!canAct) {
+      setSheetOpen(false);
+      setFeedback({ tone: 'info', message: ORPHANED_MESSAGE });
+      return;
+    }
     const action = decision;
     pendingRef.current = true;
     setPending(true);
@@ -190,9 +211,14 @@ export default function AsistenDetailIzinScreen() {
       setFeedback({ tone: 'success', message: SUCCESS_MESSAGE[action] });
       return;
     }
-    const decidedElsewhere = !isReviewable(latestIzinStatus(izin.id));
+    // Firestore menulis ke cache lokal lebih dulu, jadi setelah TIMEOUT store sudah memuat
+    // keputusan sendiri; status terbaru hanya bermakna "diputuskan pihak lain" bila rules
+    // menolak. TIMEOUT dipetakan izinReviewErrorMessage ke pesan "belum dapat dipastikan".
+    const decidedElsewhere =
+      res.code === 'CONFLICT' ||
+      (res.code === 'PERMISSION_DENIED' && !isReviewable(latestIzinStatus(izin.id)));
     setFeedback(
-      decidedElsewhere || res.code === 'CONFLICT'
+      decidedElsewhere
         ? { tone: 'info', message: IZIN_ALREADY_REVIEWED_MESSAGE }
         : { tone: 'danger', message: izinReviewErrorMessage(res.code) },
     );
@@ -220,8 +246,8 @@ export default function AsistenDetailIzinScreen() {
             </View>
           </Card>
 
-          {/* Saran AI hanya relevan selama izin belum diputuskan atau bila hasilnya tersimpan. */}
-          {reviewable || izin.ai ? (
+          {/* Saran AI tampil bila hasilnya tersimpan, atau selama izin masih bisa diperiksa. */}
+          {izin.ai || needsAi ? (
             <View style={styles.actionGroup}>
               <AiSuggestionCard
                 ai={izin.ai}
@@ -229,7 +255,7 @@ export default function AsistenDetailIzinScreen() {
                 retrying={retrying}
                 retryDisabled={!isOnline}
               />
-              {awaitingAi && canAct ? (
+              {needsAi ? (
                 // SRS §3.3: bila aplikasi praktikan tertutup sebelum AI selesai, asisten dapat
                 // menjalankan AI dari sisinya. Kartu memuat tidak punya tombol (props SRS §8).
                 <>
@@ -250,9 +276,7 @@ export default function AsistenDetailIzinScreen() {
           ) : null}
 
           {reviewable && orphaned ? (
-            <Text style={styles.caption}>
-              Sesi untuk izin ini sudah dihapus, jadi izin tidak perlu diperiksa.
-            </Text>
+            <Text style={styles.caption}>{ORPHANED_MESSAGE}</Text>
           ) : reviewable ? (
             // Asisten tetap dapat memutuskan walau AI belum selesai atau gagal (SRS §3.3, rules).
             <View style={styles.actionGroup}>

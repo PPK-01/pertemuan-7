@@ -4,12 +4,12 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppBar } from '@/components/ui/AppBar';
-import { Banner } from '@/components/ui/Banner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { IdentityCard } from '@/components/ui/IdentityCard';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { PRESSED_OPACITY } from '@/components/ui/pressable';
 import { Screen } from '@/components/ui/Screen';
+import { SyncErrorState } from '@/components/ui/SyncErrorState';
 import { Tile } from '@/components/ui/Tile';
 import {
   SESSION_FILTER_EMPTY,
@@ -19,8 +19,10 @@ import {
 } from '@/features/asisten/sessionFilterLabels';
 import type { SessionFilter } from '@/features/asisten/sessionFilterLabels';
 import { IzinShortcut } from '@/features/asisten/IzinShortcut';
+import { KelasShortcut } from '@/features/asisten/KelasShortcut';
 import { KeluarSheet } from '@/features/asisten/KeluarSheet';
 import { SessionListItem } from '@/features/asisten/SessionListItem';
+import { useSyncRetry } from '@/features/asisten/useSyncRetry';
 import {
   useAppStore,
   useCurrentUser,
@@ -42,12 +44,19 @@ const CENTER_BUTTON_RING = 3.5;
 const CENTER_LABEL_LINE_HEIGHT = 14;
 // Jarak label ke lingkaran; spacing.xs (4) terlalu renggang untuk bar bawah.
 const CENTER_LABEL_GAP = 2;
+// Lebar dasar tiap pintasan: dua pintasan berdampingan bila muat, bertumpuk di layar 360dp
+// agar keterangan "Perlu diperiksa" tidak terlipat.
+const SHORTCUT_BASIS = 200;
 // Garis pemisah bar bawah setebal 1 seperti border komponen lain, bukan hairline.
 const BAR_BORDER_WIDTH = 1;
 // Ikon plus digambar dari dua garis: kotak 20, garis 14 x 2,5 agar seimbang di lingkaran 54.
 const PLUS_ICON_SIZE = 20;
 const PLUS_STROKE_LENGTH = 14;
 const PLUS_STROKE_WIDTH = 2.5;
+
+const SESSIONS_SYNC_KEYS = ['sessions'] as const;
+// Badge pintasan Izin bergantung pada listener izin.
+const IZIN_SYNC_KEYS = ['izin'] as const;
 
 function PlusIcon() {
   return (
@@ -68,8 +77,10 @@ export default function AsistenHomeScreen() {
   const logout = useAppStore((state) => state.logout);
   const sessions = useSessionsForUser(currentUser?.id ?? '');
   const sessionsSync = useSyncState('sessions');
+  const sessionsRetry = useSyncRetry(SESSIONS_SYNC_KEYS);
   const izinList = useIzinForAsisten();
   const izinSync = useSyncState('izin');
+  const izinRetry = useSyncRetry(IZIN_SYNC_KEYS);
 
   const [filter, setFilter] = useState<SessionFilter>('all');
   const [keluarVisible, setKeluarVisible] = useState(false);
@@ -128,7 +139,7 @@ export default function AsistenHomeScreen() {
   // jadi status muat hanya menggantikan daftar yang masih kosong.
   const loadingInitial =
     (sessionsSync === 'idle' || sessionsSync === 'loading') && sessions.length === 0;
-  const syncError = sessionsSync === 'error';
+  const syncError = sessionsRetry.visible;
 
   const empty = SESSION_FILTER_EMPTY[filter];
   const emptyMessage = 'message' in empty ? empty.message : undefined;
@@ -161,13 +172,29 @@ export default function AsistenHomeScreen() {
                   />
                 ) : null}
 
-                <IzinShortcut
-                  pendingCount={pendingIzinCount}
-                  countStatus={
-                    izinSync === 'error' ? 'error' : izinSync === 'ready' ? 'ready' : 'loading'
-                  }
-                  onPress={() => router.push('/asisten/izin')}
-                />
+                <View style={styles.shortcutRow}>
+                  <View style={styles.shortcutItem}>
+                    <IzinShortcut
+                      pendingCount={pendingIzinCount}
+                      countStatus={
+                        izinSync === 'error' ? 'error' : izinSync === 'ready' ? 'ready' : 'loading'
+                      }
+                      onPress={() => router.push('/asisten/izin')}
+                    />
+                  </View>
+                  <View style={styles.shortcutItem}>
+                    <KelasShortcut onPress={() => router.push('/asisten/kelas')} />
+                  </View>
+                </View>
+
+                {izinRetry.visible ? (
+                  <SyncErrorState
+                    compact
+                    message={izinRetry.message}
+                    onRetry={izinRetry.retry}
+                    retrying={izinRetry.retrying}
+                  />
+                ) : null}
 
                 <View
                   role="radiogroup"
@@ -187,14 +214,18 @@ export default function AsistenHomeScreen() {
                 </View>
 
                 {syncError ? (
-                  <Banner tone="danger" message="Gagal memuat data. Periksa koneksi lalu coba lagi." />
+                  <SyncErrorState
+                    message={sessionsRetry.message}
+                    onRetry={sessionsRetry.retry}
+                    retrying={sessionsRetry.retrying}
+                  />
                 ) : null}
               </View>
             }
             ListEmptyComponent={
-              loadingInitial ? (
+              syncError && sessions.length === 0 ? null : loadingInitial ? (
                 <LoadingState />
-              ) : syncError && sessions.length === 0 ? null : (
+              ) : (
                 <EmptyState title={empty.title} message={emptyMessage} action={emptyAction} />
               )
             }
@@ -248,6 +279,15 @@ const styles = StyleSheet.create({
   headerBlock: {
     gap: spacing.lg,
     marginBottom: spacing.lg,
+  },
+  shortcutRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  shortcutItem: {
+    flexGrow: 1,
+    flexBasis: SHORTCUT_BASIS,
   },
   tilesGrid: {
     flexDirection: 'row',

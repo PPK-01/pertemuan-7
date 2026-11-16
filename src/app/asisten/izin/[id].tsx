@@ -11,7 +11,7 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { Screen } from '@/components/ui/Screen';
-import { goBackToList } from '@/features/asisten/goBackToList';
+import { goBackToIzinList } from '@/features/asisten/goBackToList';
 import {
   IZIN_ALREADY_REVIEWED_MESSAGE,
   izinReviewErrorMessage,
@@ -19,7 +19,11 @@ import {
 import { izinFilterOf } from '@/features/asisten/izinFilterLabels';
 import { IzinReviewSheet } from '@/features/asisten/IzinReviewSheet';
 import type { ReviewDecision } from '@/features/asisten/IzinReviewSheet';
-import { getIzinSessionLabel, getPraktikanName } from '@/features/asisten/izinSessionLabel';
+import {
+  getIzinSessionLabel,
+  getIzinSessionState,
+  getPraktikanName,
+} from '@/features/asisten/izinSessionLabel';
 import { OFFLINE_ACTION_HINT, writeErrorMessage } from '@/features/asisten/writeErrorMessage';
 import {
   useAppStore,
@@ -71,7 +75,6 @@ export default function AsistenDetailIzinScreen() {
   const izinSync = useSyncState('izin');
   const session = useSessionById(izin?.sessionId ?? '');
   const sessionsSync = useSyncState('sessions');
-  const sessionsLoading = sessionsSync === 'idle' || sessionsSync === 'loading';
   const isOnline = useIsOnline();
   const retryAi = useAppStore((state) => state.retryAi);
   const reviewIzin = useAppStore((state) => state.reviewIzin);
@@ -109,7 +112,7 @@ export default function AsistenDetailIzinScreen() {
     const loading = izinSync === 'idle' || izinSync === 'loading';
     return (
       <View style={styles.container}>
-        <AppBar subtitle="Detail izin" canGoBack onGoBack={goBackToList} />
+        <AppBar subtitle="Detail izin" canGoBack onGoBack={goBackToIzinList} />
         <Screen edges={['left', 'right', 'bottom']}>
           {loading ? (
             <LoadingState />
@@ -117,13 +120,13 @@ export default function AsistenDetailIzinScreen() {
             // Listener gagal: izinnya mungkin ada, jadi jangan menyatakan tidak ditemukan.
             <View style={styles.body}>
               <Banner tone="danger" message="Gagal memuat data. Periksa koneksi lalu coba lagi." />
-              <Button label="Kembali" onPress={goBackToList} variant="secondary" />
+              <Button label="Kembali" onPress={goBackToIzinList} variant="secondary" />
             </View>
           ) : (
             <EmptyState
               title="Izin tidak ditemukan"
               message="Izin mungkin sudah dihapus atau tautan tidak valid."
-              action={{ label: 'Kembali', onPress: goBackToList }}
+              action={{ label: 'Kembali', onPress: goBackToIzinList }}
             />
           )}
         </Screen>
@@ -132,7 +135,11 @@ export default function AsistenDetailIzinScreen() {
   }
 
   const praktikanName = getPraktikanName(izin.userName);
-  const sessionLabel = getIzinSessionLabel(session ?? undefined, sessionsLoading);
+  const sessionLabel = getIzinSessionLabel(session, sessionsSync);
+  // Izin yatim: sesinya sudah dihapus. Izin tetap bisa dibuka, tetapi tidak diperiksa lagi
+  // karena tidak ada sesi yang rekapnya terpengaruh.
+  const orphaned = getIzinSessionState(session, sessionsSync) === 'deleted';
+  const canAct = reviewable && !orphaned;
   const review = izin.review;
   const catatan = review?.catatan?.trim();
   // pending_ai tanpa hasil = analisis belum selesai. Izin lama bisa saja pending_ai tetapi
@@ -193,7 +200,7 @@ export default function AsistenDetailIzinScreen() {
 
   return (
     <View style={styles.container}>
-      <AppBar subtitle="Detail izin" canGoBack onGoBack={goBackToList} />
+      <AppBar subtitle="Detail izin" canGoBack onGoBack={goBackToIzinList} />
       <Screen edges={['left', 'right', 'bottom']}>
         <View style={styles.body}>
           {feedback ? <Banner key={feedback.id} tone={feedback.tone} message={feedback.message} /> : null}
@@ -202,7 +209,7 @@ export default function AsistenDetailIzinScreen() {
             <Text role="heading" style={styles.name}>
               {praktikanName}
             </Text>
-            <Text style={styles.session}>{sessionLabel}</Text>
+            <Text style={[styles.session, orphaned && styles.sessionMissing]}>{sessionLabel}</Text>
             <IzinStatusBadge status={izin.status} />
           </View>
 
@@ -218,11 +225,11 @@ export default function AsistenDetailIzinScreen() {
             <View style={styles.actionGroup}>
               <AiSuggestionCard
                 ai={izin.ai}
-                onRetry={reviewable ? handleRunAi : undefined}
+                onRetry={canAct ? handleRunAi : undefined}
                 retrying={retrying}
                 retryDisabled={!isOnline}
               />
-              {awaitingAi ? (
+              {awaitingAi && canAct ? (
                 // SRS §3.3: bila aplikasi praktikan tertutup sebelum AI selesai, asisten dapat
                 // menjalankan AI dari sisinya. Kartu memuat tidak punya tombol (props SRS §8).
                 <>
@@ -242,7 +249,11 @@ export default function AsistenDetailIzinScreen() {
             </View>
           ) : null}
 
-          {reviewable ? (
+          {reviewable && orphaned ? (
+            <Text style={styles.caption}>
+              Sesi untuk izin ini sudah dihapus, jadi izin tidak perlu diperiksa.
+            </Text>
+          ) : reviewable ? (
             // Asisten tetap dapat memutuskan walau AI belum selesai atau gagal (SRS §3.3, rules).
             <View style={styles.actionGroup}>
               <View style={styles.actionRow}>
@@ -315,6 +326,10 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textMuted,
     marginBottom: spacing.xs,
+  },
+  // Sudah textMuted; dimiringkan agar tidak terbaca sebagai nama sesi.
+  sessionMissing: {
+    fontStyle: 'italic',
   },
   sectionTitle: {
     ...typography.heading,

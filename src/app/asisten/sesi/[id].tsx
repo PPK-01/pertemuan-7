@@ -41,6 +41,10 @@ type SheetKind = StatusAction | 'delete';
 // fromStatus: status saat sheet dibuka, untuk mendeteksi perubahan dari luar.
 type SheetState = { kind: SheetKind; fromStatus: SessionStatus };
 
+// Tombol "Kembali ke daftar sesi" selalu menuju daftar, apa pun riwayatnya (mis. dari detail
+// izin); tombol kembali di AppBar tetap mengikuti riwayat lewat goBackToList.
+const goToList = () => router.replace('/asisten');
+
 const SUCCESS_MESSAGE: Record<StatusAction, string> = {
   open: 'Sesi dibuka',
   close: 'Sesi ditutup',
@@ -107,7 +111,7 @@ export default function AsistenDetailSesiScreen() {
             <EmptyState
               title="Sesi tidak ditemukan"
               message="Sesi mungkin sudah dihapus atau tautan tidak valid."
-              action={{ label: 'Kembali ke daftar sesi', onPress: goBackToList }}
+              action={{ label: 'Kembali ke daftar sesi', onPress: goToList }}
             />
           )}
         </Screen>

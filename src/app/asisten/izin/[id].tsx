@@ -1,6 +1,8 @@
 import { useLocalSearchParams } from 'expo-router';
+import { useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { AiSuggestionCard } from '@/components/izin/AiSuggestionCard';
 import { IzinStatusBadge } from '@/components/izin/IzinStatusBadge';
 import { AppBar } from '@/components/ui/AppBar';
 import { Banner } from '@/components/ui/Banner';
@@ -12,14 +14,24 @@ import { Screen } from '@/components/ui/Screen';
 import { goBackToList } from '@/features/asisten/goBackToList';
 import { izinFilterOf } from '@/features/asisten/izinFilterLabels';
 import { getIzinSessionLabel, getPraktikanName } from '@/features/asisten/izinSessionLabel';
-import { useIzinById, useSessionById, useSyncState } from '@/store/appStore';
+import { OFFLINE_ACTION_HINT, writeErrorMessage } from '@/features/asisten/writeErrorMessage';
+import {
+  useAppStore,
+  useIsOnline,
+  useIzinById,
+  useSessionById,
+  useSyncState,
+} from '@/store/appStore';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 import { formatDateTime } from '@/utils/time';
 
-// Detail baca-saja; tombol Setujui/Tolak dan kartu saran AI menyusul bersama pemeriksaan izin.
+// Detail baca-saja; tombol Setujui/Tolak menyusul bersama pemeriksaan izin.
 const REVIEW_PENDING_CAPTION = 'Pemeriksaan izin akan tersedia di pembaruan berikutnya.';
+
+// id membuat Banner di-mount ulang agar pesan yang sama tetap diumumkan pembaca layar.
+type Feedback = { id: number; tone: 'success' | 'danger' | 'info'; message: string };
 
 function DetailField({ label, value }: { label: string; value: string }) {
   return (
@@ -39,6 +51,15 @@ export default function AsistenDetailIzinScreen() {
   const session = useSessionById(izin?.sessionId ?? '');
   const sessionsSync = useSyncState('sessions');
   const sessionsLoading = sessionsSync === 'idle' || sessionsSync === 'loading';
+  const isOnline = useIsOnline();
+  const retryAi = useAppStore((state) => state.retryAi);
+
+  // retryAi sedang menunggu Result; ref menahan tekanan beruntun sebelum render berikutnya.
+  const [retrying, setRetrying] = useState(false);
+  const retryingRef = useRef(false);
+  const [feedback, setFeedbackState] = useState<Feedback | null>(null);
+  const setFeedback = (next: Omit<Feedback, 'id'>) =>
+    setFeedbackState((prev) => ({ ...next, id: (prev?.id ?? 0) + 1 }));
 
   if (!izin) {
     // Deep link bisa tiba sebelum listener izin terisi; jangan langsung menyatakan tidak ditemukan.
@@ -71,12 +92,28 @@ export default function AsistenDetailIzinScreen() {
   // Aturan sama dengan filter "Perlu diperiksa", termasuk status tak dikenal.
   const isPending = izinFilterOf(izin.status) === 'pending';
   const catatan = izin.review?.catatan?.trim();
+  // pending_ai tanpa hasil = analisis belum selesai. Izin lama bisa saja pending_ai tetapi
+  // sudah memuat ai; hasil itu tetap ditampilkan.
+  const awaitingAi = !izin.ai && izin.status === 'pending_ai';
+
+  const handleRunAi = async () => {
+    if (retryingRef.current) return;
+    retryingRef.current = true;
+    setRetrying(true);
+    const res = await retryAi(izin.id);
+    retryingRef.current = false;
+    setRetrying(false);
+    // Hasil sukses sudah terlihat di kartu lewat listener; hanya kegagalan tulis yang diumumkan.
+    if (!res.ok) setFeedback({ tone: 'danger', message: writeErrorMessage(res.code) });
+  };
 
   return (
     <View style={styles.container}>
       <AppBar subtitle="Detail izin" canGoBack onGoBack={goBackToList} />
       <Screen edges={['left', 'right', 'bottom']}>
         <View style={styles.body}>
+          {feedback ? <Banner key={feedback.id} tone={feedback.tone} message={feedback.message} /> : null}
+
           <View style={styles.header}>
             <Text role="heading" style={styles.name}>
               {praktikanName}
@@ -89,11 +126,48 @@ export default function AsistenDetailIzinScreen() {
             <View style={styles.fields}>
               <DetailField label="Diajukan" value={formatDateTime(izin.createdAt)} />
               <DetailField label="Alasan" value={izin.alasan} />
-              {catatan ? <DetailField label="Catatan asisten" value={catatan} /> : null}
             </View>
           </Card>
 
+          {/* Saran AI hanya relevan selama izin belum diputuskan atau bila hasilnya tersimpan. */}
+          {isPending || izin.ai ? (
+            <View style={styles.actionGroup}>
+              <AiSuggestionCard
+                ai={izin.ai}
+                onRetry={isPending ? handleRunAi : undefined}
+                retrying={retrying}
+                retryDisabled={!isOnline}
+              />
+              {awaitingAi ? (
+                // SRS §3.3: bila aplikasi praktikan tertutup sebelum AI selesai, asisten dapat
+                // menjalankan AI dari sisinya. Kartu memuat tidak punya tombol (props SRS §8).
+                <>
+                  <Text style={styles.caption}>
+                    Analisis biasanya berjalan otomatis di aplikasi praktikan. Bila status tidak
+                    berubah, jalankan dari perangkat ini.
+                  </Text>
+                  <Button
+                    label="Jalankan analisis AI"
+                    variant="secondary"
+                    onPress={handleRunAi}
+                    loading={retrying}
+                    disabled={!isOnline}
+                  />
+                </>
+              ) : null}
+              {isPending && !isOnline && (awaitingAi || izin.ai?.state === 'failed') ? (
+                <Text style={styles.caption}>{OFFLINE_ACTION_HINT}</Text>
+              ) : null}
+            </View>
+          ) : null}
+
           {isPending ? <Text style={styles.caption}>{REVIEW_PENDING_CAPTION}</Text> : null}
+
+          {catatan ? (
+            <Card>
+              <DetailField label="Catatan asisten" value={catatan} />
+            </Card>
+          ) : null}
         </View>
       </Screen>
     </View>
@@ -133,6 +207,9 @@ const styles = StyleSheet.create({
   fieldValue: {
     ...typography.body,
     color: colors.text,
+  },
+  actionGroup: {
+    gap: spacing.sm,
   },
   caption: {
     ...typography.caption,

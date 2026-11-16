@@ -11,6 +11,13 @@ export type CodeDisplayProps = {
   style?: StyleProp<ViewStyle>;
 };
 
+// Ukuran tanpa padanan token: sel kode cukup lebar untuk satu digit typography.code, garis
+// tepi panel sama dengan Card, dan petunjuk sedikit diredupkan di atas navy.
+const CELL_WIDTH = 64;
+const CELL_HEIGHT = 76;
+const BORDER_WIDTH = 1;
+const HINT_OPACITY = 0.85;
+
 export function CodeDisplay({
   code = '----',
   hint = 'Bagikan kode ini ke kelas.',
@@ -23,8 +30,9 @@ export function CodeDisplay({
       <Text style={styles.label}>Kode sesi</Text>
       <View
         accessible
+        // Pengecualian ARIA: prop role tidak punya nilai 'text' untuk teks statis.
         accessibilityRole="text"
-        accessibilityLabel={`Kode sesi ${code.split('').join(' ')}`}
+        aria-label={`Kode sesi ${code.split('').join(' ')}`}
         style={styles.cellRow}
       >
         {digits.map((digit, index) => (
@@ -45,7 +53,8 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     alignItems: 'center',
     gap: spacing.md,
-    borderWidth: 1,
+    borderWidth: BORDER_WIDTH,
+    // TODO token: garis tipis putih transparan di atas navy (usulan colors.onPrimarySubtle)
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   label: {
@@ -59,8 +68,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cell: {
-    width: 64,
-    height: 76,
+    width: CELL_WIDTH,
+    height: CELL_HEIGHT,
     backgroundColor: colors.surface,
     borderRadius: radius.md,
     alignItems: 'center',
@@ -76,7 +85,7 @@ const styles = StyleSheet.create({
   hint: {
     fontSize: typography.body.fontSize,
     color: colors.onPrimary,
-    opacity: 0.85,
+    opacity: HINT_OPACITY,
     textAlign: 'center',
   },
 });

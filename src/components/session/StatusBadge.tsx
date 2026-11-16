@@ -30,6 +30,12 @@ export function StatusBadge({ status, style }: StatusBadgeProps) {
   );
 }
 
+// Ukuran tanpa padanan token: penanda bentuk kecil di samping label (titik penuh, lingkaran
+// kosong, kotak) dengan garis lingkaran kosong yang cukup tebal agar terlihat di 6dp.
+const INDICATOR_SIZE = 6;
+const HOLLOW_STROKE = 1.5;
+const SQUARE_RADIUS = 1;
+
 const styles = StyleSheet.create({
   badge: {
     flexDirection: 'row',
@@ -43,19 +49,19 @@ const styles = StyleSheet.create({
   },
   label: typography.label,
   indicatorCircleFilled: {
-    width: 6,
-    height: 6,
+    width: INDICATOR_SIZE,
+    height: INDICATOR_SIZE,
     borderRadius: radius.full,
   },
   indicatorCircleHollow: {
-    width: 6,
-    height: 6,
+    width: INDICATOR_SIZE,
+    height: INDICATOR_SIZE,
     borderRadius: radius.full,
-    borderWidth: 1.5,
+    borderWidth: HOLLOW_STROKE,
   },
   indicatorSquare: {
-    width: 6,
-    height: 6,
-    borderRadius: 1,
+    width: INDICATOR_SIZE,
+    height: INDICATOR_SIZE,
+    borderRadius: SQUARE_RADIUS,
   },
 });

@@ -34,6 +34,8 @@ export type TextFieldProps = {
 const BORDER_WIDTH = 1;
 const FOCUS_BORDER_WIDTH = 2;
 const FOCUS_INSET = FOCUS_BORDER_WIDTH - BORDER_WIDTH;
+// aria-describedby hanya dipakai react-native-web; Android dan iOS mengabaikannya.
+const DESCRIBED_BY_SUPPORTED = Platform.OS === 'web';
 
 export function TextField({
   label,
@@ -80,8 +82,13 @@ export function TextField({
           textContentType={textContentType}
           editable={!disabled}
           aria-disabled={disabled}
-          aria-label={label}
+          // Native tidak mendukung aria-describedby: error digabung ke label agar tetap dibacakan
+          // walau petunjuk TalkBack dimatikan pengguna.
+          aria-label={!DESCRIBED_BY_SUPPORTED && hasError ? `${label}, ${error}` : label}
           aria-describedby={message ? messageId : undefined}
+          // Pengecualian ARIA: RN belum punya prop ARIA untuk hint; hint biasa (bukan error)
+          // dibacakan TalkBack setelah label lewat accessibilityHint.
+          accessibilityHint={DESCRIBED_BY_SUPPORTED || hasError ? undefined : hint}
           aria-invalid={hasError}
           style={[
             styles.input,

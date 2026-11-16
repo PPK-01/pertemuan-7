@@ -20,6 +20,9 @@ export type ButtonProps = {
   style?: StyleProp<ViewStyle>;
 };
 
+// Garis tepi tipis sama dengan Card; belum ada token lebar garis.
+const BORDER_WIDTH = 1;
+
 type Variant = NonNullable<ButtonProps['variant']>;
 
 const textColor: Record<Variant, string> = {
@@ -62,7 +65,7 @@ export function Button({
           size="small"
           color={color}
           style={styles.spinner}
-          accessibilityLabel="Memuat"
+          aria-label="Memuat"
         />
       ) : null}
       <Text style={[styles.label, { color }]}>{label}</Text>
@@ -80,7 +83,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: radius.sm,
-    borderWidth: 1,
+    borderWidth: BORDER_WIDTH,
     borderColor: 'transparent',
   },
   primary: {

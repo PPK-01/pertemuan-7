@@ -30,6 +30,9 @@ export function KelasRow({ kelas, onPress }: KelasRowProps) {
   );
 }
 
+// Garis tepi tipis sama dengan Banner dan Button; belum ada token lebar garis.
+const BORDER_WIDTH = 1;
+
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
@@ -40,7 +43,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     backgroundColor: colors.surface,
     borderRadius: radius.md,
-    borderWidth: 1,
+    borderWidth: BORDER_WIDTH,
     borderColor: colors.border,
   },
   text: { flex: 1, gap: spacing.xs },

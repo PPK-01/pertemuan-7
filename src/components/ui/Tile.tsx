@@ -13,6 +13,21 @@ export type TileProps = {
   onPress: () => void;
 };
 
+// Ukuran tanpa padanan token: lebar minimum agar empat ubin muat di 360dp, garis tepi sama
+// dengan Card, dan ikon status yang digambar dari View di dalam kotak ICON_BOX_SIZE.
+const TILE_MIN_WIDTH = 70;
+const BORDER_WIDTH = 1;
+const ICON_BOX_SIZE = 24;
+const ICON_STROKE = 1.5;
+const ICON_CORNER = 1;
+const GRID_SIZE = 14;
+const GRID_DOT_SIZE = 5;
+const CLOCK_SIZE = 16;
+const CLOCK_HAND_LENGTH = 5;
+const OPEN_DOT_SIZE = 14;
+const CLOSED_BOX_SIZE = 13;
+const CLOSED_BOX_RADIUS = 2;
+
 function TileIcon({ type, selected }: { type: TileProps['iconType']; selected?: boolean }) {
   const tint = selected ? colors.accent : colors.primary;
 
@@ -94,12 +109,12 @@ export function Tile({ label, count, iconType, selected = false, onPress }: Tile
 const styles = StyleSheet.create({
   tile: {
     flex: 1,
-    minWidth: 70,
-    minHeight: layout.minTouch + 24,
+    minWidth: TILE_MIN_WIDTH,
+    minHeight: layout.minTouch + spacing.xl,
     borderRadius: radius.tile,
     padding: spacing.md,
     justifyContent: 'space-between',
-    borderWidth: 1,
+    borderWidth: BORDER_WIDTH,
   },
   tileUnselected: {
     backgroundColor: colors.tile,
@@ -116,8 +131,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   iconBox: {
-    width: 24,
-    height: 24,
+    width: ICON_BOX_SIZE,
+    height: ICON_BOX_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -138,40 +153,40 @@ const styles = StyleSheet.create({
     color: colors.onPrimary,
   },
   grid2x2: {
-    width: 14,
-    height: 14,
+    width: GRID_SIZE,
+    height: GRID_SIZE,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 2,
+    gap: spacing.xs / 2,
     justifyContent: 'center',
     alignItems: 'center',
   },
   gridDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 1,
+    width: GRID_DOT_SIZE,
+    height: GRID_DOT_SIZE,
+    borderRadius: ICON_CORNER,
   },
   hollowCircle: {
-    width: 16,
-    height: 16,
+    width: CLOCK_SIZE,
+    height: CLOCK_SIZE,
     borderRadius: radius.full,
-    borderWidth: 1.5,
+    borderWidth: ICON_STROKE,
     alignItems: 'center',
     justifyContent: 'center',
   },
   clockHand: {
-    width: 1.5,
-    height: 5,
-    borderRadius: 1,
+    width: ICON_STROKE,
+    height: CLOCK_HAND_LENGTH,
+    borderRadius: ICON_CORNER,
   },
   filledCircle: {
-    width: 14,
-    height: 14,
+    width: OPEN_DOT_SIZE,
+    height: OPEN_DOT_SIZE,
     borderRadius: radius.full,
   },
   closedBox: {
-    width: 13,
-    height: 13,
-    borderRadius: 2,
+    width: CLOSED_BOX_SIZE,
+    height: CLOSED_BOX_SIZE,
+    borderRadius: CLOSED_BOX_RADIUS,
   },
 });

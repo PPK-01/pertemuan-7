@@ -13,6 +13,19 @@ export type CodeCellsProps = {
   activeIndex?: number;
 };
 
+// Ukuran tanpa padanan token: tiga varian sel kode punya ukuran sendiri (motif kecil di login,
+// panel tampilan, dan sel input), garis tepi tipis, dan digit input di antara heading dan code.
+const SIGNATURE_CELL_WIDTH = 38;
+const SIGNATURE_CELL_HEIGHT = 46;
+const DISPLAY_CELL_WIDTH = 64;
+const DISPLAY_CELL_HEIGHT = 74;
+const INPUT_CELL_WIDTH = 60;
+const INPUT_CELL_HEIGHT = 68;
+const BORDER_WIDTH = 1;
+const CELL_BORDER_WIDTH = 1.5;
+const ACTIVE_BORDER_WIDTH = 2;
+const INPUT_DIGIT_SIZE = 32;
+
 export function CodeCells({ value = '', variant, activeIndex = -1 }: CodeCellsProps) {
   const chars = [
     value[0] ?? '',
@@ -79,27 +92,30 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   cellSignature: {
-    width: 38,
-    height: 46,
+    width: SIGNATURE_CELL_WIDTH,
+    height: SIGNATURE_CELL_HEIGHT,
     borderRadius: radius.md,
+    // TODO token: isian putih transparan di atas navy (usulan colors.onPrimarySubtle)
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1.5,
+    borderWidth: CELL_BORDER_WIDTH,
   },
   cellSignatureActive: {
     borderColor: colors.accent,
+    // TODO token: isian kuning aksen transparan di atas navy (usulan colors.accentSubtle)
     backgroundColor: 'rgba(255, 196, 0, 0.12)',
   },
   cellSignatureInactive: {
+    // TODO token: tepi sel tidak aktif di atas navy (usulan colors.onPrimaryBorder)
     borderColor: 'rgba(255, 255, 255, 0.25)',
   },
   cellDisplayNavy: {
-    width: 64,
-    height: 74,
+    width: DISPLAY_CELL_WIDTH,
+    height: DISPLAY_CELL_HEIGHT,
     borderRadius: radius.md,
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
+    borderWidth: BORDER_WIDTH,
     borderColor: colors.border,
   },
   textDisplayNavy: {
@@ -110,11 +126,11 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   cellInputLight: {
-    width: 60,
-    height: 68,
+    width: INPUT_CELL_WIDTH,
+    height: INPUT_CELL_HEIGHT,
     borderRadius: radius.md,
     backgroundColor: colors.surface,
-    borderWidth: 1.5,
+    borderWidth: CELL_BORDER_WIDTH,
     borderColor: colors.borderStrong,
     alignItems: 'center',
     justifyContent: 'center',
@@ -124,10 +140,10 @@ const styles = StyleSheet.create({
   },
   cellInputActive: {
     borderColor: colors.primary,
-    borderWidth: 2,
+    borderWidth: ACTIVE_BORDER_WIDTH,
   },
   textInputLight: {
-    fontSize: 32,
+    fontSize: INPUT_DIGIT_SIZE,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
     color: colors.text,

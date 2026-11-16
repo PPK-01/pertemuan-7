@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { AccessibilityInfo, Platform, StyleSheet, Text, View } from 'react-native';
 import type { StyleProp, ViewStyle } from 'react-native';
 
 import { colors } from '@/theme/colors';
@@ -14,12 +15,42 @@ export type BannerProps = {
   style?: StyleProp<ViewStyle>;
 };
 
+// Garis tepi tipis sama dengan Card; belum ada token lebar garis.
+const BORDER_WIDTH = 1;
+
+const IS_WEB = Platform.OS === 'web';
+
+/**
+ * Banner danger (gagal simpan, validasi) diumumkan ke pembaca layar tanpa perlu difokus.
+ *
+ * Web: role="alert" sudah dibacakan browser. Android/iOS: role="alert" tidak dibacakan
+ * otomatis, dan aria-live hanya berlaku di Android serta diam saat Banner baru di-mount,
+ * padahal Banner danger biasanya muncul bersamaan dengan pesannya. Karena itu native memakai
+ * announceForAccessibility, dan Banner danger tidak memakai aria-live agar tidak dibaca dua kali.
+ */
+function useAnnounceAlert(enabled: boolean, announcement: string) {
+  // Ref bertahan saat rerender, sehingga pesan yang sama tidak diumumkan ulang.
+  // Pemanggil yang memberi key baru per kegagalan membuat Banner baru, jadi tetap diumumkan.
+  const lastAnnounced = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!enabled || IS_WEB || lastAnnounced.current === announcement) return;
+    lastAnnounced.current = announcement;
+    AccessibilityInfo.announceForAccessibility(announcement);
+  }, [enabled, announcement]);
+}
+
 export function Banner({ tone, message, title, style }: BannerProps) {
   const { bg, text } = colors.feedback[tone];
+  const isAlert = tone === 'danger';
+  useAnnounceAlert(isAlert, title ? `${title}. ${message}` : message);
 
   return (
+    // info/success: aria-live="polite" membacakan perubahan pesan tanpa memotong bacaan lain,
+    // dan tidak membacakan Banner statis saat layar dibuka.
     <View
-      aria-live="polite"
+      role={isAlert ? 'alert' : undefined}
+      aria-live={isAlert ? undefined : 'polite'}
       style={[
         styles.container,
         { backgroundColor: bg, borderColor: text },
@@ -35,7 +66,7 @@ export function Banner({ tone, message, title, style }: BannerProps) {
 const styles = StyleSheet.create({
   container: {
     borderRadius: radius.md,
-    borderWidth: 1,
+    borderWidth: BORDER_WIDTH,
     padding: spacing.md,
     gap: spacing.xs,
   },

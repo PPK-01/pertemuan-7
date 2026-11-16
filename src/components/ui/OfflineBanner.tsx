@@ -47,6 +47,9 @@ export function OfflineBanner({ isOnline, message = DEFAULT_MESSAGE }: OfflineBa
   );
 }
 
+// Garis tepi tipis sama dengan Banner dan Button; belum ada token lebar garis.
+const BORDER_WIDTH = 1;
+
 const styles = StyleSheet.create({
   banner: {
     flexDirection: 'row',
@@ -54,7 +57,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingBottom: spacing.sm,
     backgroundColor: bg,
-    borderBottomWidth: 1,
+    borderBottomWidth: BORDER_WIDTH,
     borderBottomColor: text,
   },
   icon: {

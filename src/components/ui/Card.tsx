@@ -41,10 +41,13 @@ export function Card({ children, onPress, accessibilityLabel, style }: CardProps
   );
 }
 
+// Garis tepi tipis sama dengan Banner dan Button; belum ada token lebar garis.
+const BORDER_WIDTH = 1;
+
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: BORDER_WIDTH,
     borderColor: colors.border,
     borderRadius: radius.md,
     padding: spacing.lg,

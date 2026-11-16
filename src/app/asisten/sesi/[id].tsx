@@ -2,7 +2,6 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { CodeDisplay } from '@/components/session/CodeDisplay';
 import { SessionInfo } from '@/components/session/SessionInfo';
 import { AppBar } from '@/components/ui/AppBar';
 import { Banner } from '@/components/ui/Banner';
@@ -19,6 +18,7 @@ import {
   STATUS_CHANGED_MESSAGE,
   sessionErrorMessage,
 } from '@/features/asisten/sessionErrorMessage';
+import { SessionCodeCard } from '@/features/asisten/SessionCodeCard';
 import { takeSessionFlash } from '@/features/asisten/sessionFlash';
 import { StatusActionSheet } from '@/features/asisten/StatusActionSheet';
 import type { StatusAction } from '@/features/asisten/StatusActionSheet';
@@ -193,10 +193,7 @@ export default function AsistenDetailSesiScreen() {
           ) : null}
 
           {session.status === 'open' ? (
-            <CodeDisplay
-              code={session.code}
-              hint="Bagikan kode ini ke kelas."
-            />
+            <SessionCodeCard sessionId={session.id} kelas={session.kelas} />
           ) : null}
 
           {session.status === 'closed' ? (

@@ -16,7 +16,11 @@ type AiSentimen = AiSuccess['sentimen'];
 export type AiSuggestionCardProps = {
   /** Kosong = analisis belum selesai (izin masih `pending_ai`); kartu menampilkan state memuat. */
   ai?: AiResult;
-  /** Tombol "Coba lagi analisis AI" hanya tampil bila ada dan `ai.state === 'failed'` (FR-24). */
+  /**
+   * Tombol "Coba lagi analisis AI" hanya tampil bila ada dan `ai.state === 'failed'` (FR-24).
+   * Berikan hanya selama izin masih bisa diperiksa; kartu gagal memakai keberadaannya untuk
+   * menampilkan keterangan bahwa asisten tetap dapat memutuskan.
+   */
   onRetry?: () => void;
   /** Analisis ulang sedang berjalan; tombol menampilkan spinner. */
   retrying?: boolean;
@@ -124,7 +128,11 @@ export function AiSuggestionCard({
         <View style={styles.content}>
           <Header title="Analisis AI gagal" />
           <Text style={styles.body}>{`Penyebab: ${cause} (${ai.errorCode}).`}</Text>
-          <Text style={styles.muted}>Kamu tetap dapat memutuskan izin ini tanpa saran AI.</Text>
+          {onRetry ? (
+            // onRetry hanya diberikan selama izin masih bisa diperiksa; setelah diputuskan,
+            // kalimat ini justru menyesatkan.
+            <Text style={styles.muted}>Kamu tetap dapat memutuskan izin ini tanpa saran AI.</Text>
+          ) : null}
           {onRetry ? (
             <Button
               label="Coba lagi analisis AI"

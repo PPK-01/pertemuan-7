@@ -86,7 +86,7 @@ export default function JadwalScreen() {
     <View style={styles.container}>
       <AppBar subtitle="Jadwal Praktikum" />
 
-      <Screen scroll={false} edges={['left', 'right']}>
+      <Screen scroll={false} edges={['left', 'right']} noPadding>
         <View style={styles.screenInner}>
           <FlatList
             data={sessions}
@@ -177,7 +177,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
     paddingBottom: spacing.xxl * 2,
     gap: spacing.sm,
   },

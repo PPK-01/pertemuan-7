@@ -14,6 +14,8 @@ export type ScreenProps = {
   scroll?: boolean;
   /** Default ['left', 'right', 'bottom']; layar dalam tab memakai ['left', 'right']. */
   edges?: Edge[];
+  /** Hilangkan padding horizontal bawaan agar konten/FlatList bisa melebar ke tepi layar. */
+  noPadding?: boolean;
 };
 
 const DEFAULT_EDGES: Edge[] = ['left', 'right', 'bottom'];
@@ -23,7 +25,7 @@ const DEFAULT_EDGES: Edge[] = ['left', 'right', 'bottom'];
 const KEYBOARD_BEHAVIOR: KeyboardAvoidingViewProps['behavior'] =
   Platform.OS === 'web' ? undefined : 'padding';
 
-export function Screen({ children, scroll = true, edges = DEFAULT_EDGES }: ScreenProps) {
+export function Screen({ children, scroll = true, edges = DEFAULT_EDGES, noPadding = false }: ScreenProps) {
   const safeAreaRef = useRef<ComponentRef<typeof SafeAreaView>>(null);
   // Frame KeyboardAvoidingView relatif terhadap SafeAreaView, sedangkan posisi keyboard relatif
   // terhadap window; offset = posisi SafeAreaView di window (mis. di bawah header Stack).
@@ -52,10 +54,10 @@ export function Screen({ children, scroll = true, edges = DEFAULT_EDGES }: Scree
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.scrollContent}
           >
-            <View style={styles.content}>{children}</View>
+            <View style={[styles.content, noPadding && styles.contentNoPadding]}>{children}</View>
           </ScrollView>
         ) : (
-          <View style={[styles.content, styles.fill]}>{children}</View>
+          <View style={[styles.content, styles.fill, noPadding && styles.contentNoPadding]}>{children}</View>
         )}
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -72,5 +74,9 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.lg,
+  },
+  contentNoPadding: {
+    paddingHorizontal: 0,
+    paddingVertical: 0,
   },
 });

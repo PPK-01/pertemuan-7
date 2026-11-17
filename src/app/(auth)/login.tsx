@@ -74,7 +74,11 @@ export default function LoginScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        bounces={true}
       >
+        {/* Navy extension view so overscrolling at the top remains navy */}
+        <View style={styles.navyTopOverscroll} />
+
         {/* Navy Header */}
         <View style={[styles.navyHeader, { paddingTop: insets.top + spacing.lg }]}>
           <View style={styles.headerContent}>
@@ -156,20 +160,6 @@ export default function LoginScreen() {
                 <Text style={styles.linkText}>Daftar di sini</Text>
               </Pressable>
             </View>
-
-            {/* Petunjuk akun demo */}
-            <View style={styles.demoBox}>
-              <Text style={styles.demoTitle}>Akun Percobaan Cepat:</Text>
-              <Text style={styles.demoItem}>
-                • Asisten: <Text style={styles.demoBold}>dina@rawuh.ac.id</Text>
-              </Text>
-              <Text style={styles.demoItem}>
-                • Praktikan (Kelas A): <Text style={styles.demoBold}>bagas@rawuh.ac.id</Text>
-              </Text>
-              <Text style={styles.demoItem}>
-                • Praktikan (Kelas A): <Text style={styles.demoBold}>citra@rawuh.ac.id</Text>
-              </Text>
-            </View>
           </View>
         </View>
       </ScrollView>
@@ -180,10 +170,19 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   screenContainer: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     flexGrow: 1,
+    backgroundColor: colors.background,
+  },
+  navyTopOverscroll: {
+    position: 'absolute',
+    top: -1000,
+    left: 0,
+    right: 0,
+    height: 1000,
+    backgroundColor: colors.primary,
   },
   navyHeader: {
     backgroundColor: colors.primary,
@@ -261,28 +260,5 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '700',
     textDecorationLine: 'underline',
-  },
-  demoBox: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    gap: 4,
-    marginTop: spacing.sm,
-  },
-  demoTitle: {
-    ...typography.caption,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 2,
-  },
-  demoItem: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  demoBold: {
-    fontWeight: '600',
-    color: colors.primary,
   },
 });

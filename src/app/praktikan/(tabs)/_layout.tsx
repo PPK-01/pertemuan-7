@@ -27,6 +27,12 @@ export default function PraktikanTabsLayout() {
           title: 'Riwayat',
         }}
       />
+      <Tabs.Screen
+        name="profil"
+        options={{
+          title: 'Profil',
+        }}
+      />
     </Tabs>
   );
 }

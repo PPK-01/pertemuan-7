@@ -99,6 +99,8 @@ export function Tile({ label, count, iconType, selected = false, onPress }: Tile
           selected ? styles.textSelected : styles.textUnselected,
         ]}
         numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.75}
       >
         {label}
       </Text>
@@ -109,10 +111,11 @@ export function Tile({ label, count, iconType, selected = false, onPress }: Tile
 const styles = StyleSheet.create({
   tile: {
     flex: 1,
-    minWidth: TILE_MIN_WIDTH,
+    minWidth: 0,
     minHeight: layout.minTouch + spacing.xl,
     borderRadius: radius.tile,
-    padding: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xs + 2,
     justifyContent: 'space-between',
     borderWidth: BORDER_WIDTH,
   },
@@ -140,6 +143,7 @@ const styles = StyleSheet.create({
     fontSize: typography.caption.fontSize,
     lineHeight: typography.caption.lineHeight,
     fontWeight: typography.label.fontWeight,
+    textAlign: 'center',
   },
   countText: {
     fontSize: typography.heading.fontSize,

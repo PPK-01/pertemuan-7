@@ -66,12 +66,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    // Boleh menyusut agar label panjang membungkus di baris sempit, bukan meluap keluar kartu.
-    flexShrink: 1,
+    flexShrink: 0,
     borderRadius: radius.full,
   },
   label: {
-    flexShrink: 1,
+    flexShrink: 0,
   },
   icon: {
     borderRadius: radius.full,

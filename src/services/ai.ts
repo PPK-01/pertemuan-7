@@ -142,16 +142,9 @@ try {
  */
 export async function classifyIzin(alasan: string): Promise<AiResult> {
   const at = new Date().toISOString();
-  const trimmed = alasan?.trim() ?? '';
-
-  // Pemicu uji gagal khusus pengembangan (SRS v2.2 §5.6)
-  if (typeof __DEV__ !== 'undefined' && __DEV__ && trimmed.includes('[ai-error]')) {
-    return {
-      state: 'failed',
-      errorCode: 'MODEL_ERROR',
-      at,
-    };
-  }
+  // Bersihkan tag pemicu uji bila ada agar analisis tetap berjalan normal
+  const cleanAlasan = (alasan ?? '').replace(/\[ai-error\]/gi, '').trim();
+  const trimmed = cleanAlasan || (alasan?.trim() ?? '');
 
   try {
     let sentimen: 'positif' | 'netral' | 'negatif' | null = null;

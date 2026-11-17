@@ -57,6 +57,15 @@ function ClockIcon({ color }: { color: string }) {
   );
 }
 
+function UserIcon({ color }: { color: string }) {
+  return (
+    <View style={styles.iconFrame}>
+      <View style={[styles.userHead, { borderColor: color }]} />
+      <View style={[styles.userBody, { borderColor: color }]} />
+    </View>
+  );
+}
+
 function KeyCodeIcon() {
   return (
     <View style={styles.keyIconFrame}>
@@ -97,7 +106,8 @@ export function PraktikanTabBar(props: TabBarProps) {
     } else {
       if (route.name === 'jadwal') router.push('/praktikan/jadwal');
       else if (route.name === 'izin') router.push('/praktikan/izin');
-      else router.push('/praktikan/riwayat');
+      else if (route.name === 'riwayat') router.push('/praktikan/riwayat');
+      else router.push('/praktikan/profil' as any);
     }
   }
 
@@ -202,6 +212,35 @@ export function PraktikanTabBar(props: TabBarProps) {
               </View>
               <Text style={[styles.tabLabel, isFocused && styles.tabLabelActive]}>
                 Riwayat
+              </Text>
+            </Pressable>
+          );
+        })()}
+
+        {/* Tab 4: Profil */}
+        {(() => {
+          const route = state.routes.find((r) => r.name === 'profil');
+          if (!route) return null;
+          const isFocused = state.routes[state.index]?.name === 'profil';
+          const tintColor = isFocused ? colors.primary : colors.textMuted;
+
+          return (
+            <Pressable
+              key={route.key}
+              onPress={() => !isFocused && handleNavigate(route)}
+              role="tab"
+              aria-selected={isFocused}
+              aria-label="Profil praktikan"
+              style={({ pressed }) => [
+                styles.tabItem,
+                pressed && { opacity: PRESSED_OPACITY },
+              ]}
+            >
+              <View style={[styles.iconPill, isFocused && styles.iconPillActive]}>
+                <UserIcon color={tintColor} />
+              </View>
+              <Text style={[styles.tabLabel, isFocused && styles.tabLabelActive]}>
+                Profil
               </Text>
             </Pressable>
           );
@@ -349,6 +388,21 @@ const styles = StyleSheet.create({
     width: 5,
     height: 1.5,
     right: 4,
+  },
+  userHead: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    marginBottom: 1,
+  },
+  userBody: {
+    width: 15,
+    height: 7,
+    borderTopLeftRadius: 5,
+    borderTopRightRadius: 5,
+    borderWidth: 1.5,
+    borderBottomWidth: 0,
   },
   keyIconFrame: {
     width: 20,

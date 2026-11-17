@@ -124,7 +124,8 @@ const styles = StyleSheet.create({
   container: { gap: spacing.xs },
   label: { ...typography.label, color: colors.text },
   input: {
-    ...typography.body,
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.body.fontWeight,
     minHeight: layout.minTouch,
     borderWidth: BORDER_WIDTH,
     borderColor: colors.borderStrong,
@@ -132,7 +133,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     color: colors.text,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingTop: 6,
+    paddingBottom: 10,
+    textAlignVertical: 'center',
     ...Platform.select({
       web: { outlineWidth: 0 } as const,
     }),
@@ -141,13 +144,15 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
     borderWidth: FOCUS_BORDER_WIDTH,
     paddingHorizontal: spacing.md - FOCUS_INSET,
-    paddingVertical: spacing.sm - FOCUS_INSET,
+    paddingTop: 6 - FOCUS_INSET,
+    paddingBottom: 10 - FOCUS_INSET,
   },
   inputError: {
     borderColor: colors.feedback.danger.text,
     borderWidth: FOCUS_BORDER_WIDTH,
     paddingHorizontal: spacing.md - FOCUS_INSET,
-    paddingVertical: spacing.sm - FOCUS_INSET,
+    paddingTop: 6 - FOCUS_INSET,
+    paddingBottom: 10 - FOCUS_INSET,
   },
   inputDisabled: {
     backgroundColor: colors.disabled.bg,

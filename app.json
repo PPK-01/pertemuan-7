@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Rawuh",
-    "slug": "rawuh",
+    "name": "Rawuh (SDK 58)",
+    "slug": "rawuh-sdk58",
     "version": "1.0.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",

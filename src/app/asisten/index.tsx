@@ -223,7 +223,7 @@ export default function AsistenHomeScreen() {
               </View>
             }
             ListEmptyComponent={
-              syncError && sessions.length === 0 ? null : loadingInitial ? (
+              syncError && sessions.length === 0 ? undefined : loadingInitial ? (
                 <LoadingState />
               ) : (
                 <EmptyState title={empty.title} message={emptyMessage} action={emptyAction} />

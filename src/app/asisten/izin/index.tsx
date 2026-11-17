@@ -124,7 +124,7 @@ export default function AsistenIzinListScreen() {
             </View>
           }
           ListEmptyComponent={
-            syncError && izinList.length === 0 ? null : loadingInitial ? (
+            syncError && izinList.length === 0 ? undefined : loadingInitial ? (
               <LoadingState />
             ) : (
               <EmptyState title={IZIN_FILTER_EMPTY[filter]} action={emptyAction} />

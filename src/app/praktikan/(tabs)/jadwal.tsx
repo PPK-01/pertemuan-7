@@ -152,7 +152,7 @@ export default function JadwalScreen() {
               </View>
             }
             ListEmptyComponent={
-              syncError && sessions.length === 0 ? null : loadingInitial ? (
+              syncError && sessions.length === 0 ? undefined : loadingInitial ? (
                 <LoadingState label="Memuat jadwal praktikum…" />
               ) : (
                 <EmptyState

@@ -88,7 +88,7 @@ export default function AsistenKelasListScreen() {
             </View>
           }
           ListEmptyComponent={
-            syncError && kelasList.length === 0 ? null : loadingInitial ? (
+            syncError && kelasList.length === 0 ? undefined : loadingInitial ? (
               <LoadingState label="Memuat kelas praktikum…" />
             ) : (
               <EmptyState

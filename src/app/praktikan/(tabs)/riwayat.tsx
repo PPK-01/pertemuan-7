@@ -136,7 +136,7 @@ export default function RiwayatScreen() {
               </View>
             }
             ListEmptyComponent={
-              syncError && entries.length === 0 ? null : loadingInitial ? (
+              syncError && entries.length === 0 ? undefined : loadingInitial ? (
                 <LoadingState label="Memuat riwayat presensi…" />
               ) : (
                 <EmptyState

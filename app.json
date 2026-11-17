@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "pertemuan-6",
-    "slug": "pertemuan-6",
+    "name": "Rawuh",
+    "slug": "rawuh",
     "version": "1.0.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
-    "scheme": "pertemuan6",
+    "scheme": "rawuh",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"

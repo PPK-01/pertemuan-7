@@ -83,7 +83,7 @@ export default function IzinListScreen() {
               </View>
             }
             ListEmptyComponent={
-              syncError && izinList.length === 0 ? null : loadingInitial ? (
+              syncError && izinList.length === 0 ? undefined : loadingInitial ? (
                 <LoadingState label="Memuat pengajuan izin…" />
               ) : (
                 <EmptyState

@@ -32,7 +32,7 @@ export function Screen({ children, scroll = true, edges = DEFAULT_EDGES }: Scree
 
   const measureKeyboardOffset = () => {
     if (!KEYBOARD_BEHAVIOR) return;
-    safeAreaRef.current?.measureInWindow((_x, y) => setKeyboardOffset(y));
+    safeAreaRef.current?.measureInWindow((_x: number, y: number) => setKeyboardOffset(y));
   };
 
   return (

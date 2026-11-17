@@ -152,7 +152,7 @@ export default function AsistenHomeScreen() {
     <View style={styles.container}>
       <AppBar subtitle="Sesi" />
 
-      <Screen scroll={false} edges={['left', 'right']}>
+      <Screen scroll={false} edges={['left', 'right']} noPadding>
         <View style={styles.screenInner}>
           <FlatList
             data={filteredSessions}
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
     // Ruang tambahan agar item terakhir tidak tertutup tombol bulat yang menonjol.
     paddingBottom: spacing.xxl + CENTER_BUTTON_LIFT + spacing.lg,

@@ -128,7 +128,11 @@ export default function DaftarScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        bounces={true}
       >
+        {/* Navy extension view so overscrolling at the top remains navy */}
+        <View style={styles.navyTopOverscroll} />
+
         {/* Header */}
         <View style={[styles.navyHeader, { paddingTop: insets.top + spacing.lg }]}>
           <Text style={styles.appName}>Rawuh</Text>
@@ -308,10 +312,19 @@ export default function DaftarScreen() {
 const styles = StyleSheet.create({
   screenContainer: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     flexGrow: 1,
+    backgroundColor: colors.background,
+  },
+  navyTopOverscroll: {
+    position: 'absolute',
+    top: -1000,
+    left: 0,
+    right: 0,
+    height: 1000,
+    backgroundColor: colors.primary,
   },
   navyHeader: {
     backgroundColor: colors.primary,

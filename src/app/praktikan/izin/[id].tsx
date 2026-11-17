@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
-import { IZIN_STATUS_DESCRIPTION, IZIN_STATUS_LABEL } from '@/features/praktikan/izinMessages';
+import { IZIN_STATUS_DESCRIPTION } from '@/features/praktikan/izinMessages';
 import { useIzinById, useSessionById } from '@/store/appStore';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
@@ -37,7 +37,6 @@ export default function DetailIzinScreen() {
     );
   }
 
-  const statusLabel = IZIN_STATUS_LABEL[izin.status] ?? 'Sedang Diproses';
   const statusDesc = IZIN_STATUS_DESCRIPTION[izin.status] ?? '';
 
   return (
@@ -47,9 +46,14 @@ export default function DetailIzinScreen() {
       <Screen edges={['left', 'right', 'bottom']}>
         <View style={styles.content}>
           {/* Status Banner Card */}
-          <View style={[styles.statusCard, izin.status === 'approved' && styles.statusCardApproved, izin.status === 'rejected' && styles.statusCardRejected]}>
-            <View style={styles.statusHeaderRow}>
-              <Text style={styles.statusTitle}>{statusLabel}</Text>
+          <View
+            style={[
+              styles.statusCard,
+              izin.status === 'approved' && styles.statusCardApproved,
+              izin.status === 'rejected' && styles.statusCardRejected,
+            ]}
+          >
+            <View style={styles.badgeRow}>
               <IzinStatusBadge status={izin.status} />
             </View>
             <Text style={styles.statusDescription}>{statusDesc}</Text>
@@ -142,16 +146,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF5F5',
     borderColor: '#FFC7C7',
   },
-  statusHeaderRow: {
+  badgeRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  statusTitle: {
-    ...typography.label,
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
+    marginBottom: spacing.xs / 2,
   },
   statusDescription: {
     ...typography.body,

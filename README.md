@@ -59,33 +59,32 @@ Aplikasi Rawuh mematuhi panduan desain ketat yang terdokumentasi di [DESIGN.md](
 ## Struktur Direktori
 
 ```text
-pertemuan-6/
-├── assets/
-│   └── branding/
-│       ├── rawuh-animated-logo.svg   # Logo animasi SVG master untuk README
-│       └── rawuh-mark.svg            # Ikon mark vektor Rawuh
+rawuh/
+├── assets/                           # Aset visual, ikon, & splash screen
+│   └── branding/                     # Logo master & animasi SVG Rawuh
+├── scripts/                          # Otomasi build iOS IPA, patching, & seed database
+│   ├── build-ios.sh                  # One-click build sideload IPA iOS
+│   ├── repackage-ipa.sh              # Ekstraksi & pembungkusan IPA
+│   ├── patch-macho.py                # Binary patcher Mach-O (Simulator -> iOS)
+│   ├── setup-eas-secrets.sh          # Sinkronisasi env Firebase ke EAS Secret
+│   └── seed-firebase.js              # Script seeding data awal ke Firebase
 ├── src/
-│   ├── app/                          # Expo Router file-based screens
-│   │   ├── _layout.tsx               # Root layout & status bar provider
+│   ├── app/                          # Expo Router file-based screens & navigasi
+│   │   ├── _layout.tsx               # Root layout & route protection
 │   │   ├── index.tsx                 # Selector switch peran & profil
-│   │   ├── asisten/                  # Alur & layar asisten lab
-│   │   │   ├── index.tsx             # Beranda asisten & daftar sesi
-│   │   │   ├── buat.tsx              # Form pembuatan sesi praktikum
-│   │   │   └── sesi/[id].tsx         # Detail sesi & rekap kehadiran
-│   │   └── praktikan/                # Alur & layar praktikan
-│   │       ├── (tabs)/
-│   │       │   ├── _layout.tsx       # Tab bar kustom dengan tombol tengah
-│   │       │   ├── jadwal.tsx        # Layar jadwal sesi
-│   │       │   └── riwayat.tsx       # Layar riwayat kehadiran
-│   │       └── sesi/[id].tsx         # Layar input token 4-digit
-│   ├── components/
-│   │   ├── session/                  # Komponen domain sesi (SessionRow, CodeDisplay, StatusBadge)
-│   │   └── ui/                       # Komponen atomik (AppBar, IdentityCard, Tile, CodeCells, Button)
-│   ├── features/
-│   │   ├── asisten/                  # Modul fitur asisten (RekapList, StatusActionSheet)
-│   │   └── praktikan/                # Modul fitur praktikan (PraktikanTabBar, PresensiForm)
-│   ├── store/                        # Zustand store (appStore.ts & selector)
-│   └── theme/                        # Desain token (colors.ts, spacing.ts, typography.ts)
+│   │   ├── (auth)/                   # Layar login & registrasi asisten/praktikan
+│   │   ├── asisten/                  # Layar & fitur asisten lab
+│   │   └── praktikan/                # Layar & fitur praktikan (tabs & form presensi)
+│   ├── components/                   # Komponen antarmuka (session & UI kit)
+│   ├── config/                       # Konfigurasi runtime & Firebase environment
+│   ├── features/                     # Modul logika fitur asisten & praktikan
+│   ├── services/                     # Layanan API (Auth, Firestore, AI Model EDOM)
+│   ├── store/                        # Global state management Zustand & realtime sync
+│   └── theme/                        # Token desain (warna, tipografi, spasi)
+├── docs/                             # Dokumentasi arsitektur, SRS, & panduan backup
+├── firestore.rules                   # Aturan keamanan database Cloud Firestore
+├── firestore.indexes.json            # Definisi composite index Firestore
+├── IOS_LIVECONTAINER_GUIDE.md        # Panduan instalasi sideload iOS & notifikasi Bark
 ├── DESIGN.md                         # Spesifikasi lengkap desain sistem Rawuh
 └── package.json
 ```
@@ -95,15 +94,30 @@ pertemuan-6/
 ## Memulai Cepat
 
 ### Prasyarat
-- Node.js versi 18 atau lebih baru.
+- Node.js versi 18 atau lebih baru (direkomendasikan Node.js 20+).
 - Aplikasi **Expo Go** pada perangkat fisik atau simulator Android / iOS.
+- Akun Firebase (atau gunakan mode fallback in-memory).
 
-### Instalasi Dependensi
+### 1. Salin Konfigurasi Environment
+```bash
+cp .env.example .env
+```
+Lengkapi 6 variabel `EXPO_PUBLIC_FIREBASE_*` di file `.env`. Untuk menjalankan skrip seed database, sertakan juga kode undangan asisten:
+```env
+ASISTEN_INVITE_CODE=kode_undangan_rahasia
+```
+
+### 2. Instalasi Dependensi
 ```bash
 npm install
 ```
 
-### Menjalankan Server Pengembangan
+### 3. (Opsional) Seeding Data Awal ke Firebase
+```bash
+node scripts/seed-firebase.js
+```
+
+### 4. Menjalankan Server Pengembangan
 ```bash
 npx expo start
 ```
@@ -113,13 +127,88 @@ npx expo start
 
 ---
 
+## Panduan Build Aplikasi (Android & iOS)
+
+Aplikasi Rawuh mendukung pembuatan binary mandiri untuk Android (`.apk`) dan iOS (`.ipa`) menggunakan EAS Build dan skrip otomasi lokal.
+
+### 1. Build Android
+
+#### A. Standalone APK (Rekomendasi untuk Dibagikan ke HP Android)
+Membuat file installer `.apk` mandiri via EAS Cloud tanpa memerlukan Android Studio di komputer lokal:
+```bash
+npx eas-cli build --platform android --profile preview
+```
+*Output*: Tautan unduhan berkas `.apk` langsung dari server EAS yang dapat dipasang di smartphone Android manapun.
+
+#### B. Development Build (Custom Dev Client Android)
+Untuk pengujian modul native selama masa pengembangan:
+```bash
+npx eas-cli build --platform android --profile development
+```
+
+#### C. Local Build Android (Memerlukan Android Studio & Android SDK)
+```bash
+npm run android
+# atau: npx expo run:android
+```
+
+---
+
+### 2. Build iOS
+
+#### A. Sideload IPA untuk LiveContainer / TrollStore / Sideloadly (Rekomendasi)
+Metode ini memungkinkan pembuatan file `.ipa` produksi **tanpa memerlukan akun Apple Developer berbayar ($99/tahun)** dan dapat dipasang langsung di iPhone fisik via **LiveContainer** (bebas dari batasan 3-app sideload limit).
+
+Jalankan perintah satu baris berikut:
+```bash
+npm run build:ios
+```
+Skrip ini akan secara otomatis:
+1. Memeriksa kredensial EAS dan dependensi lokal (`ldid`, `python3`).
+2. Menjalankan build rilis simulator di EAS Cloud (`profile: sideload`).
+3. Mengunduh artifact `.tar.gz` dan mengekstrak direktori `.app`.
+4. Melakukan binary patching pada header Mach-O eksekutabel utama (`Rawuh`) serta seluruh **14 dynamic framework** (mengubah target platform dari `7` [iOS Simulator] ke `2` [iOS Device]).
+5. Menerapkan ad-hoc signature dan mengemas ulang menjadi berkas `build/rawuh.ipa`.
+
+> [!TIP]
+> Panduan lengkap langkah demi langkah instalasi di iPhone dan konfigurasi notifikasi push Bark dapat dibaca di **[IOS_LIVECONTAINER_GUIDE.md](./IOS_LIVECONTAINER_GUIDE.md)**.
+
+Jika ingin menjalankan build di latar belakang tanpa menunggu proses selesai di terminal:
+```bash
+npm run build:ios:nowait
+```
+
+#### B. Development Build iOS (EAS Cloud)
+```bash
+npx eas-cli build --platform ios --profile development
+```
+
+#### C. Local Build iOS (Khusus macOS dengan Xcode)
+```bash
+npm run ios
+# atau: npx expo run:ios
+```
+
+---
+
+### 3. Setup Rahasia EAS (Sinkronisasi Environment)
+Sebelum menjalankan build di EAS Cloud, pastikan variabel Firebase dari file `.env` lokal telah disinkronkan ke EAS Secrets:
+```bash
+npm run build:setup-secrets
+```
+
+---
+
 ## Verifikasi & Kualitas Kode
 
 Jalankan serangkaian pemeriksaan kualitas kode sebelum melakukan pengiriman:
 
 ```bash
+# Pemeriksaan linter ESLint
+npm run lint
+
 # Pemeriksaan tipe statis TypeScript
-npx tsc --noEmit
+npm run typecheck
 
 # Pemeriksaan kesehatan konfigurasi dan SDK Expo
 npx expo-doctor

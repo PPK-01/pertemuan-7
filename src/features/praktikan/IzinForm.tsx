@@ -107,15 +107,15 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   infoBanner: {
-    backgroundColor: '#E0E8FB',
-    borderColor: '#2A4AD0',
+    backgroundColor: colors.feedback.info.bg,
+    borderColor: colors.feedbackBorder.info,
     borderWidth: 1,
     borderRadius: radius.md,
     padding: spacing.md,
   },
   infoText: {
     ...typography.caption,
-    color: '#1B2F8F',
+    color: colors.feedback.info.text,
     lineHeight: 18,
   },
   fieldBlock: {
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   counterOk: {
-    color: '#14603A',
+    color: colors.feedback.success.text,
     fontWeight: '600',
   },
   counterError: {
@@ -161,8 +161,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   textAreaDisabled: {
-    backgroundColor: '#E3E7F2',
-    color: '#66708C',
+    backgroundColor: colors.disabled.bg,
+    color: colors.disabled.text,
   },
   errorText: {
     ...typography.caption,

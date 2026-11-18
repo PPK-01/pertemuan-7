@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   summaryBoxIzin: {
-    backgroundColor: '#F7F8FC',
+    backgroundColor: colors.surfaceMuted,
   },
   summaryNumber: {
     ...typography.display,
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   summaryNumberIzin: {
-    color: '#1B2F8F',
+    color: colors.feedback.info.text,
   },
   summaryLabel: {
     ...typography.caption,

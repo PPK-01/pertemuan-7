@@ -122,8 +122,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   infoCard: {
-    backgroundColor: '#E0E8FB',
-    borderColor: '#2A4AD0',
+    backgroundColor: colors.feedback.info.bg,
+    borderColor: colors.feedbackBorder.info,
     borderWidth: 1,
     borderRadius: radius.md,
     padding: spacing.md,
@@ -131,12 +131,12 @@ const styles = StyleSheet.create({
   },
   infoTitle: {
     ...typography.label,
-    color: '#1B2F8F',
+    color: colors.feedback.info.text,
     fontWeight: '700',
   },
   infoBody: {
     ...typography.caption,
-    color: '#1B2F8F',
+    color: colors.feedback.info.text,
     lineHeight: 18,
   },
   sectionHeaderRow: {

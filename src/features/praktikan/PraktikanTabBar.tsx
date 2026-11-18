@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
   },
   iconPillActive: {
-    backgroundColor: '#E0E8FB',
+    backgroundColor: colors.selectedSubtle,
   },
   tabLabel: {
     ...typography.caption,

@@ -23,6 +23,7 @@ import {
   createSession as svcCreateSession,
   deleteSession as svcDeleteSession,
   getSessionCode as svcGetSessionCode,
+  newSessionId as svcNewSessionId,
   setStatus as svcSetStatus,
   updateSession as svcUpdateSession,
 } from '@/services/sessions';
@@ -36,7 +37,6 @@ import { classifyIzin } from '@/services/ai';
 import { connectionService } from '@/services/connection';
 import { isFirebaseReady } from '@/services/firebase';
 import { withWriteGuard } from '@/services/guard';
-import { createId } from '@/utils/id';
 import {
   retrySync as syncRetrySync,
   startSync as syncStartSync,
@@ -91,7 +91,17 @@ export type AppStoreState = {
   retrySync: (key?: SyncKey) => void;
 
   // Aksi Sesi & Kelas (FR-04 s.d. FR-06, FR-18 s.d. FR-20, SRS v2.2 §3.4)
-  createSession: (input: CreateSessionInput) => Promise<Result<Session>>;
+  /** Id sesi baru tanpa menulis; simpan lalu kirim ke createSession agar kirim ulang aman. */
+  newSessionId: () => string;
+  /**
+   * Membuat sesi. Dengan `options.id`, sesi yang sudah ada dengan id itu dikembalikan sebagai
+   * sukses tanpa menulis ulang, sehingga kirim ulang setelah gagal atau TIMEOUT tidak membuat
+   * sesi ganda. Tanpa `options.id`, id baru dibuat setiap pemanggilan.
+   */
+  createSession: (
+    input: CreateSessionInput,
+    options?: { id?: string },
+  ) => Promise<Result<Session>>;
   updateSession: (id: string, patch: Partial<Session>) => Promise<Result>;
   deleteSession: (id: string) => Promise<Result>;
   openSession: (id: string) => Promise<Result>;
@@ -213,13 +223,22 @@ export const useAppStore = create<AppStoreState>()((set, get) => ({
     get().setCurrentUser(null);
   },
 
-  createSession: (input) => {
-    // C-2: Sesi dibuat dengan id final Firestore yang konsisten sejak awal
-    const finalSessionId = createId('ses');
-    return withWriteGuard(async () => {
-      const res = await svcCreateSession({ ...input, id: finalSessionId });
-      return res;
-    });
+  newSessionId: () => svcNewSessionId(),
+
+  createSession: async (input, options) => {
+    // C-2: Sesi dibuat dengan id final Firestore yang konsisten sejak awal. Tanpa options.id,
+    // service membuat id baru seperti sebelumnya.
+    const id = options?.id;
+    if (id) {
+      // Kirim ulang dengan id yang sama dan sesinya sudah tersinkron: tidak perlu menulis lagi.
+      const cached = get().sessions.find((s) => s.id === id);
+      if (cached) {
+        return { ok: true, data: cached };
+      }
+    }
+    // Dengan id, service membaca dokumen lebih dulu untuk tulis yang sudah tersimpan tetapi
+    // belum sampai ke cache.
+    return withWriteGuard(() => svcCreateSession({ ...input, id }));
   },
 
   updateSession: async (id, patch) => {

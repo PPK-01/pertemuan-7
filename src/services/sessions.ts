@@ -8,6 +8,7 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
+import type { DocumentData } from 'firebase/firestore';
 import { db, isFirebaseReady } from './firebase';
 import { mapFirebaseError } from './errors';
 import { dummySessionCodes, dummySessions } from '@/data/dummy';
@@ -30,6 +31,33 @@ function notifyFallbackSessionListeners() {
 
 export function getInMemorySessions(): Session[] {
   return inMemorySessions;
+}
+
+function toSession(id: string, data: DocumentData): Session {
+  return {
+    id,
+    praktikum: data.praktikum,
+    kelas: data.kelas,
+    topik: data.topik,
+    ruang: data.ruang,
+    startAt: typeof data.startAt?.toDate === 'function' ? data.startAt.toDate().toISOString() : data.startAt,
+    endAt: typeof data.endAt?.toDate === 'function' ? data.endAt.toDate().toISOString() : data.endAt,
+    status: data.status,
+    createdBy: data.createdBy,
+    openedAt: typeof data.openedAt?.toDate === 'function' ? data.openedAt.toDate().toISOString() : data.openedAt,
+    closedAt: typeof data.closedAt?.toDate === 'function' ? data.closedAt.toDate().toISOString() : data.closedAt,
+  };
+}
+
+/**
+ * Id sesi baru tanpa menulis apa pun. Dipakai layar buat sesi agar kirim ulang setelah gagal
+ * atau TIMEOUT memakai id yang sama, sehingga tidak ada sesi ganda.
+ */
+export function newSessionId(): string {
+  if (!isFirebaseReady || !db) {
+    return createId('ses');
+  }
+  return doc(collection(db, 'sessions')).id;
 }
 
 export function listenSessions(
@@ -61,22 +89,7 @@ export function listenSessions(
   const unsubscribe = onSnapshot(
     q,
     (snapshot) => {
-      const list: Session[] = snapshot.docs.map((d) => {
-        const data = d.data();
-        return {
-          id: d.id,
-          praktikum: data.praktikum,
-          kelas: data.kelas,
-          topik: data.topik,
-          ruang: data.ruang,
-          startAt: typeof data.startAt?.toDate === 'function' ? data.startAt.toDate().toISOString() : data.startAt,
-          endAt: typeof data.endAt?.toDate === 'function' ? data.endAt.toDate().toISOString() : data.endAt,
-          status: data.status,
-          createdBy: data.createdBy,
-          openedAt: typeof data.openedAt?.toDate === 'function' ? data.openedAt.toDate().toISOString() : data.openedAt,
-          closedAt: typeof data.closedAt?.toDate === 'function' ? data.closedAt.toDate().toISOString() : data.closedAt,
-        };
-      });
+      const list: Session[] = snapshot.docs.map((d) => toSession(d.id, d.data()));
       onData(list);
     },
     (error) => {
@@ -96,6 +109,10 @@ export async function createSession(
   const code = createSessionCode();
 
   if (!isFirebaseReady || !db) {
+    const existing = inMemorySessions.find((s) => s.id === sessionId);
+    if (existing) {
+      return { ok: true, data: existing };
+    }
     const newSession: Session = {
       id: sessionId,
       praktikum: input.praktikum,
@@ -116,9 +133,19 @@ export async function createSession(
   }
 
   try {
-    const batch = writeBatch(db);
-
     const sessionRef = doc(db, 'sessions', sessionId);
+
+    // Kirim ulang dengan id yang sama: bila tulis sebelumnya ternyata sudah tersimpan (mis. setelah
+    // TIMEOUT), kembalikan sesi itu tanpa menulis ulang. Rules hanya mengizinkan create, jadi
+    // menulis ulang dokumen yang sudah ada akan ditolak.
+    if (input.id) {
+      const existing = await getDoc(sessionRef);
+      if (existing.exists()) {
+        return { ok: true, data: toSession(existing.id, existing.data()) };
+      }
+    }
+
+    const batch = writeBatch(db);
     batch.set(sessionRef, {
       praktikum: input.praktikum,
       kelas: input.kelas,
@@ -135,7 +162,20 @@ export async function createSession(
     const codeRef = doc(db, 'sessions', sessionId, 'private', 'code');
     batch.set(codeRef, { code });
 
-    await batch.commit();
+    try {
+      await batch.commit();
+    } catch (commitError) {
+      // Tulis sebelumnya (mis. yang kena TIMEOUT) bisa tiba di server setelah pengecekan di atas;
+      // batch ini lalu dihitung update dan ditolak rules. Bila dokumennya ternyata ada, anggap
+      // sukses dengan sesi yang sudah tersimpan.
+      if (input.id && (commitError as { code?: string }).code === 'permission-denied') {
+        const existing = await getDoc(sessionRef);
+        if (existing.exists()) {
+          return { ok: true, data: toSession(existing.id, existing.data()) };
+        }
+      }
+      throw commitError;
+    }
 
     const created: Session = {
       id: sessionId,

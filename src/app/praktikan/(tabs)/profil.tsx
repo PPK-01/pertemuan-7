@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   summaryCardIzin: {
-    backgroundColor: '#F7F8FC',
+    backgroundColor: colors.surfaceMuted,
   },
   summaryNumber: {
     ...typography.heading,
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   summaryNumberIzin: {
-    color: '#1B2F8F',
+    color: colors.feedback.info.text,
   },
   summaryLabel: {
     ...typography.caption,

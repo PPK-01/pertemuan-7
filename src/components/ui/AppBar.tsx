@@ -84,8 +84,7 @@ const styles = StyleSheet.create({
   wrapper: {
     backgroundColor: colors.primary,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    // TODO token: garis tipis putih transparan di atas navy (usulan colors.onPrimarySubtle)
-    borderBottomColor: 'rgba(255, 255, 255, 0.12)',
+    borderBottomColor: colors.onPrimaryDivider,
   },
   bar: {
     height: BAR_HEIGHT,

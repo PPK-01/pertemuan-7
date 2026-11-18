@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   statusCard: {
-    backgroundColor: '#F7F8FC',
+    backgroundColor: colors.surfaceMuted,
     borderColor: colors.border,
     borderWidth: 1,
     borderRadius: radius.md,
@@ -139,12 +139,12 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   statusCardApproved: {
-    backgroundColor: '#F2FAF5',
-    borderColor: '#A8DFBE',
+    backgroundColor: colors.feedbackSubtle.success.bg,
+    borderColor: colors.feedbackSubtle.success.border,
   },
   statusCardRejected: {
-    backgroundColor: '#FFF5F5',
-    borderColor: '#FFC7C7',
+    backgroundColor: colors.feedbackSubtle.danger.bg,
+    borderColor: colors.feedbackSubtle.danger.border,
   },
   badgeRow: {
     flexDirection: 'row',
@@ -186,10 +186,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   decisionApproved: {
-    color: '#14603A',
+    color: colors.izin.approved.text,
   },
   decisionRejected: {
-    color: '#A32119',
+    color: colors.izin.rejected.text,
   },
   noteBox: {
     backgroundColor: colors.surface,

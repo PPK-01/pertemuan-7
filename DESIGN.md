@@ -27,9 +27,17 @@ Sistem warna menggunakan Navy Pekat sebagai penanda resmi kampus dan Kuning Akse
 | `borderStrong` | `#7A84A0` | Garis tepi input field & radio sebelum aktif | **3.45:1** thd background (Lolos $\ge 3:1$) |
 | `primary` | `#00144A` | Navy pekat untuk AppBar, IdentityCard, tombol utama | **17.52:1** thd `onPrimary` |
 | `onPrimary` | `#FFFFFF` | Teks dan ikon di atas permukaan navy | — |
+| `onPrimaryFaint` | `rgba(255, 255, 255, 0.08)` | Isian sel motif kode di atas navy | — |
+| `onPrimarySubtle` | `rgba(255, 255, 255, 0.1)` | Isian lembut di atas navy (latar avatar `IdentityCard`) | — |
+| `onPrimaryDivider` | `rgba(255, 255, 255, 0.12)` | Garis pemisah tipis di atas navy (tepi bawah `AppBar`) | — |
+| `onPrimaryBorderSubtle` | `rgba(255, 255, 255, 0.25)` | Tepi elemen tidak aktif di atas navy (sel `CodeCells` signature) | — |
+| `onPrimaryBorder` | `rgba(255, 255, 255, 0.4)` | Tepi tombol outline di atas navy (`IdentityCard`) | — |
 | `accent` | `#FFC400` | Kuning aksen kampus | **10.97:1** thd navy `primary` |
+| `accentSubtle` | `rgba(255, 196, 0, 0.12)` | Isian aksen lembut di atas navy (sel `CodeCells` signature aktif) | — |
 | `onAccent` | `#00144A` | Teks navy di atas kuning aksen | **10.97:1** thd `accent` |
 | `tile` | `#E3E7F2` | Latar ubin filter belum terpilih | — |
+| `selectedSubtle` | `#E0E8FB` | Latar penanda item navigasi terpilih (pil ikon tab bar praktikan); nilainya sengaja sama dengan `feedback.info.bg` tetapi perannya berbeda | — |
+| `surfaceMuted` | `#F7F8FC` | Permukaan kartu yang sedikit diredupkan dari `surface` (kartu status izin, ringkasan izin) | — |
 | `overlay` | `rgba(0, 20, 74, 0.5)` | Backdrop modal BottomSheet | — |
 | `disabled.bg` | `#E3E7F2` | Latar kontrol dinonaktifkan | — |
 | `disabled.text` | `#66708C` | Teks kontrol dinonaktifkan | **3.98:1** thd `disabled.bg` |
@@ -40,6 +48,9 @@ Sistem warna menggunakan Navy Pekat sebagai penanda resmi kampus dan Kuning Akse
 | `feedback.danger` | `{ bg: '#FBE3E1', text: '#A32119' }` | Banner kesalahan / gagal presensi | **6.16:1** thd bg |
 | `feedback.info` | `{ bg: '#E0E8FB', text: '#1B2F8F' }` | Banner informasi umum | **9.25:1** thd bg |
 | `feedback.warning` | `{ bg: '#FFE8CC', text: '#7A3D00' }` | Banner peringatan, banner offline "Tidak ada koneksi", penanda beda dari saran AI, saran AI perlu dicek | **7.08:1** thd bg |
+| `feedbackBorder.info` | `#2A4AD0` | Garis tepi banner/kartu info, berpasangan dengan `feedback.info.bg` | — |
+| `feedbackSubtle.success` | `{ bg: '#F2FAF5', border: '#A8DFBE' }` | Kartu status izin disetujui (lebih lembut dari banner) | — |
+| `feedbackSubtle.danger` | `{ bg: '#FFF5F5', border: '#FFC7C7' }` | Kartu status izin ditolak (lebih lembut dari banner) | — |
 | `izin.pending_ai` | `{ bg: '#E0E8FB', text: '#1B2F8F' }` | Izin sedang dianalisis, belum perlu tindakan ("Menunggu analisis") | **9.25:1** thd bg |
 | `izin.pending_review` | `{ bg: '#FFE8CC', text: '#7A3D00' }` | Izin perlu diperiksa asisten ("Perlu diperiksa" / "Menunggu pemeriksaan asisten") | **7.08:1** thd bg |
 | `izin.approved` | `{ bg: '#DDF1E4', text: '#14603A' }` | Izin disetujui asisten | **6.43:1** thd bg |
@@ -111,7 +122,7 @@ Menggunakan font sistem bawaan platform (*system font*) untuk menjamin performa 
 ### C. Motif 4 Sel Kode (`CodeCells` & `CodeInput`)
 - Motif tanda tangan 4 sel kotak terpisah:
   - **Login:** 4 sel kosong dengan sel pertama beraksen kuning.
-  - **Detail Asisten (Dibuka):** Sprint 2 memakai kartu terang `SessionCodeCard` (digit `typography.display` tabular berjarak, nol di depan terjaga, dibacakan per digit). Varian panel navy 4 sel (`CodeDisplay`, `CodeCells variant="display-navy"`) tetap tersedia di UI kit.
+  - **Detail Asisten (Dibuka):** Sprint 2 memakai kartu terang `SessionCodeCard` (digit `typography.display` tabular berjarak, nol di depan terjaga, dibacakan per digit). Varian panel navy 4 sel (`CodeCells variant="display-navy"`) tetap tersedia di UI kit.
   - **Input Praktikan:** 4 sel putih interaktif dengan fokus bergaris border navy 2dp, digerakkan oleh satu `TextInput` tersembunyi ber-`inputMode="numeric"`.
 
 ### D. Navigasi Bawah dengan Tombol Tengah Sadar-Konteks
@@ -196,16 +207,10 @@ Semua komponen hanya menerima props: tidak mengimpor store, `services/`, atau `e
 ## 10. Catatan Terbuka
 
 ### Usulan Token untuk `src/theme`
-Warna berikut masih ditulis langsung di komponen dengan komentar `TODO token:` karena belum ada padanannya. Nilainya sekarang berbeda tipis (0.08 / 0.1 / 0.12); saat token ditambahkan, pilih satu nilai lalu ganti semuanya sekaligus.
-
 | Usulan token | Nilai sekarang | Dipakai di |
 | :--- | :--- | :--- |
-| `onPrimarySubtle` | `rgba(255, 255, 255, 0.08–0.12)` | Tepi `AppBar`, tepi panel `CodeDisplay`, latar avatar `IdentityCard`, sel `CodeCells` signature |
-| `onPrimaryBorder` | `rgba(255, 255, 255, 0.25–0.4)` | Tepi tombol outline `IdentityCard`, tepi sel `CodeCells` tidak aktif |
-| `accentSubtle` | `rgba(255, 196, 0, 0.12)` | Sel aktif `CodeCells` signature |
 | `borderWidth` (`hairline: 1`, `strong: 2`) | 1 / 1.5 / 2 | Konstanta `BORDER_WIDTH` di banyak komponen |
 
 ### Lainnya
 - `Banner` belum punya tone `warning`; penanda beda dari saran AI dan sheet status masih memakai bingkai `feedback.warning` buatan sendiri.
 - Animasi buka `BottomSheet` 250ms melebihi batas transisi ≤ 200ms di Aturan Larangan; perlu diputuskan apakah batasnya dilonggarkan untuk sheet atau durasinya diturunkan.
-- `CodeDisplay` tidak dipakai layar mana pun saat ini (panel kode asisten ada di `SessionCodeCard`); dipertahankan sebagai komponen UI kit.

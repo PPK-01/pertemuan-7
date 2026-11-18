@@ -1,0 +1,156 @@
+name: Build iOS IPA (LiveContainer Sideload)
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'EAS Build Profile'
+        required: true
+        default: 'sideload'
+        type: choice
+        options:
+          - sideload
+          - preview
+          - production
+      wait_for_build:
+        description: 'Tunggu build selesai & jadikan Artifact GitHub (.ipa)'
+        required: true
+        default: true
+        type: boolean
+
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '*.md'
+      - 'docs/**'
+      - '.gitignore'
+
+jobs:
+  lint-and-typecheck:
+    name: Lint & Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run TypeScript typecheck
+        run: npx tsc --noEmit
+
+      - name: Run Expo lint
+        run: npx expo lint
+
+  build-ios:
+    name: Build iOS with EAS Cloud
+    needs: lint-and-typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh
+
+      - name: Start EAS Cloud Build
+        id: eas_build
+        run: |
+          PROFILE="${{ github.event.inputs.profile || 'sideload' }}"
+          WAIT_BUILD="${{ github.event_name == 'push' && 'false' || github.event.inputs.wait_for_build }}"
+
+          mkdir -p build
+
+          if [ "$WAIT_BUILD" = "true" ]; then
+            echo "Menjalankan build EAS dengan --wait..."
+            eas build \
+              --platform ios \
+              --profile "$PROFILE" \
+              --non-interactive \
+              --wait \
+              --json > build/eas-output.json
+
+            # Ekstrak download URL
+            BUILD_URL=$(node -e "
+              const fs = require('fs');
+              try {
+                const data = JSON.parse(fs.readFileSync('build/eas-output.json', 'utf8'));
+                const item = Array.isArray(data) ? data[0] : data;
+                console.log(item?.artifacts?.buildUrl || item?.artifacts?.applicationArchiveUrl || '');
+              } catch(e) {
+                console.log('');
+              }
+            ")
+
+            if [ -n "$BUILD_URL" ]; then
+              echo "build_url=$BUILD_URL" >> $GITHUB_OUTPUT
+              echo "has_artifact=true" >> $GITHUB_OUTPUT
+              echo "Mengunduh arsip build..."
+              curl -f -sL "$BUILD_URL" -o build/rawuh-build.tar.gz
+              echo "Repackaging menjadi rawuh.ipa..."
+              ./scripts/repackage-ipa.sh build/rawuh-build.tar.gz build/rawuh.ipa
+            else
+              echo "has_artifact=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "Menjalankan build EAS di background (--no-wait)..."
+            eas build \
+              --platform ios \
+              --profile "$PROFILE" \
+              --non-interactive \
+              --no-wait
+            echo "has_artifact=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload IPA Artifact
+        if: steps.eas_build.outputs.has_artifact == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rawuh-livecontainer-ipa
+          path: build/rawuh.ipa
+          retention-days: 7
+
+      - name: Build Summary
+        if: always()
+        run: |
+          echo "## 📱 Rawuh iOS Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Profile:** \`${{ github.event.inputs.profile || 'sideload' }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Target:** iOS LiveContainer (No Apple Developer Account needed)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.eas_build.outputs.has_artifact }}" = "true" ]; then
+            echo "### ✅ File IPA Berhasil Dibuat!" >> $GITHUB_STEP_SUMMARY
+            echo "Kamu bisa langsung mengunduh **rawuh-livecontainer-ipa** di tab Artifacts di bagian bawah halaman run ini." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "#### Cara Sideload di LiveContainer:" >> $GITHUB_STEP_SUMMARY
+            echo "1. Unduh artifact zip, lalu ekstrak \`rawuh.ipa\`" >> $GITHUB_STEP_SUMMARY
+            echo "2. Kirim \`rawuh.ipa\` ke iPhone via AirDrop / Files" >> $GITHUB_STEP_SUMMARY
+            echo "3. Buka **LiveContainer** di iPhone" >> $GITHUB_STEP_SUMMARY
+            echo "4. Tap ikon **+** di kanan atas -> Pilih **Import IPA**" >> $GITHUB_STEP_SUMMARY
+            echo "5. Pilih \`rawuh.ipa\` -> Siap digunakan!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Build sedang berjalan di EAS Cloud atau trigger tanpa opsi wait." >> $GITHUB_STEP_SUMMARY
+            echo "Cek status dan download artefak di [Expo Dashboard](https://expo.dev)." >> $GITHUB_STEP_SUMMARY
+          fi

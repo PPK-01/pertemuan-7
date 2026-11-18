@@ -8,7 +8,13 @@
     "scheme": "rawuh",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.laangid.rawuh",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -42,8 +48,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "3a124cc4-1e6b-46e2-aed7-c5dc3b7c9444"
+        "projectId": "94ab994b-31a4-4bcf-8a08-88672cc4040f"
       }
-    }
+    },
+    "owner": "dhimno"
   }
 }

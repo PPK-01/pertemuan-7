@@ -52,10 +52,24 @@ jobs:
   build-ios:
     name: Build iOS with EAS Cloud
     needs: lint-and-typecheck
+    # Hanya jalankan kompilasi iOS jika dipicu manual (workflow_dispatch) atau ada tag [build ios] di commit
+    # Hal ini mencegah kuota 30 build/bulan EAS habis otomatis pada push reguler
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[build ios]')
     runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Validate EXPO_TOKEN Secret
+        run: |
+          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
+            echo "::error::Secret 'EXPO_TOKEN' belum terpasang di GitHub Secrets!"
+            echo "Buka https://expo.dev/settings/access-tokens untuk membuat access token,"
+            echo "lalu masukkan ke GitHub: Settings -> Secrets and variables -> Actions -> New repository secret (Nama: EXPO_TOKEN)."
+            exit 1
+          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -151,6 +165,6 @@ jobs:
             echo "4. Tap ikon **+** di kanan atas -> Pilih **Import IPA**" >> $GITHUB_STEP_SUMMARY
             echo "5. Pilih \`rawuh.ipa\` -> Siap digunakan!" >> $GITHUB_STEP_SUMMARY
           else
-            echo "Build sedang berjalan di EAS Cloud atau trigger tanpa opsi wait." >> $GITHUB_STEP_SUMMARY
+            echo "Build selesai atau dipicu di background." >> $GITHUB_STEP_SUMMARY
             echo "Cek status dan download artefak di [Expo Dashboard](https://expo.dev)." >> $GITHUB_STEP_SUMMARY
           fi

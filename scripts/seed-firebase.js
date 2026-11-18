@@ -33,21 +33,31 @@ if (fs.existsSync(envPath)) {
   }
 }
 
-const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "AIzaSyApqxMup_RqciM7WgUcoioFGs4EPQYaioA",
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || "rawuh-presensi.firebaseapp.com",
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || "rawuh-presensi",
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || "rawuh-presensi.firebasestorage.app",
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "530785331905",
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || "1:530785331905:web:81b6025c4d0b8e8df58240",
+// Konfigurasi Firebase hanya dibaca dari environment (.env); tidak ada nilai cadangan tertulis
+// agar script tidak diam-diam menulis ke project yang bukan milik pemanggil.
+const FIREBASE_ENV = {
+  apiKey: "EXPO_PUBLIC_FIREBASE_API_KEY",
+  authDomain: "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN",
+  projectId: "EXPO_PUBLIC_FIREBASE_PROJECT_ID",
+  storageBucket: "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET",
+  messagingSenderId: "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
+  appId: "EXPO_PUBLIC_FIREBASE_APP_ID",
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+const missingFirebaseEnv = Object.values(FIREBASE_ENV).filter((name) => !process.env[name]);
+if (missingFirebaseEnv.length > 0) {
+  console.error("\n❌ [ERROR] Konfigurasi Firebase belum lengkap di environment!");
+  console.error("Lengkapi variabel berikut di file .env (lihat .env.example):");
+  for (const name of missingFirebaseEnv) {
+    console.error(`  ${name}=`);
+  }
+  console.error("");
+  process.exit(1);
+}
 
-const DEFAULT_PASSWORD = "password123";
-const INVITE_CODE = process.env.ASISTEN_INVITE_CODE || process.env.EXPO_PUBLIC_ASISTEN_INVITE_CODE;
+// Hanya ASISTEN_INVITE_CODE. Jangan memakai awalan EXPO_PUBLIC_ untuk kode undangan: variabel
+// berawalan itu ikut tertanam di bundle aplikasi bila dibaca dari src/.
+const INVITE_CODE = process.env.ASISTEN_INVITE_CODE;
 
 if (!INVITE_CODE) {
   console.error("\n❌ [ERROR] Kode undangan asisten belum diset di environment!");
@@ -55,6 +65,16 @@ if (!INVITE_CODE) {
   console.error("  ASISTEN_INVITE_CODE=kode_asisten node scripts/seed-firebase.js\n");
   process.exit(1);
 }
+
+const firebaseConfig = Object.fromEntries(
+  Object.entries(FIREBASE_ENV).map(([key, name]) => [key, process.env[name]]),
+);
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const DEFAULT_PASSWORD = "password123";
 
 async function getOrCreateUser(email, password, displayName) {
   try {

@@ -138,6 +138,10 @@ export type ErrorCode =
   | 'NOT_FOUND'
   | 'INVALID_INPUT'
   | 'CONFLICT'
+  /** Data dengan kunci unik yang sama sudah ada (mis. pasangan praktikum dan kelas). */
+  | 'DUPLICATE'
+  /** Data masih dirujuk data lain sehingga belum boleh diubah atau dihapus (FR-20). */
+  | 'IN_USE'
   | 'UNKNOWN';
 
 export type Result<T = void> =

@@ -1,3 +1,4 @@
+import { DUPLICATE_KELAS_MESSAGE } from '@/features/asisten/kelasValidation';
 import type { ErrorCode } from '@/types';
 
 /** Keterangan di bawah tombol tulis yang dinonaktifkan saat offline (FR-29). */
@@ -21,6 +22,11 @@ export function writeErrorMessage(code: ErrorCode): string {
       return 'Data tidak ditemukan. Mungkin sudah dihapus.';
     case 'CONFLICT':
       return 'Data sudah berubah. Periksa data terbaru lalu coba lagi.';
+    case 'DUPLICATE':
+      // Saat ini hanya dipakai pasangan praktikum dan kelas (services/kelas).
+      return DUPLICATE_KELAS_MESSAGE;
+    case 'IN_USE':
+      return 'Kelas ini masih dipakai sesi praktikum, jadi belum bisa diubah atau dihapus.';
     case 'INVALID_INPUT':
     case 'UNKNOWN':
       return 'Terjadi kesalahan. Coba lagi.';

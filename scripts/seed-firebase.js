@@ -1,3 +1,5 @@
+const fs = require("fs");
+const path = require("path");
 const { initializeApp } = require("firebase/app");
 const {
   getAuth,
@@ -13,13 +15,31 @@ const {
   serverTimestamp,
 } = require("firebase/firestore");
 
+// Muat variabel environment dari .env di root jika ada
+const envPath = path.resolve(__dirname, "../.env");
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, "utf-8");
+  for (const line of envContent.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx !== -1) {
+      const key = trimmed.slice(0, eqIdx).trim();
+      const val = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, "");
+      if (!process.env[key]) {
+        process.env[key] = val;
+      }
+    }
+  }
+}
+
 const firebaseConfig = {
-  apiKey: "AIzaSyApqxMup_RqciM7WgUcoioFGs4EPQYaioA",
-  authDomain: "rawuh-presensi.firebaseapp.com",
-  projectId: "rawuh-presensi",
-  storageBucket: "rawuh-presensi.firebasestorage.app",
-  messagingSenderId: "530785331905",
-  appId: "1:530785331905:web:81b6025c4d0b8e8df58240",
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "AIzaSyApqxMup_RqciM7WgUcoioFGs4EPQYaioA",
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || "rawuh-presensi.firebaseapp.com",
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || "rawuh-presensi",
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || "rawuh-presensi.firebasestorage.app",
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "530785331905",
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || "1:530785331905:web:81b6025c4d0b8e8df58240",
 };
 
 const app = initializeApp(firebaseConfig);
@@ -27,7 +47,14 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 const DEFAULT_PASSWORD = "password123";
-const INVITE_CODE = "LAB2026";
+const INVITE_CODE = process.env.ASISTEN_INVITE_CODE || process.env.EXPO_PUBLIC_ASISTEN_INVITE_CODE;
+
+if (!INVITE_CODE) {
+  console.error("\n❌ [ERROR] Kode undangan asisten belum diset di environment!");
+  console.error("Tambahkan ASISTEN_INVITE_CODE=<kode> di file .env atau jalankan:");
+  console.error("  ASISTEN_INVITE_CODE=kode_asisten node scripts/seed-firebase.js\n");
+  process.exit(1);
+}
 
 async function getOrCreateUser(email, password, displayName) {
   try {

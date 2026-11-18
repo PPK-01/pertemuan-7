@@ -95,18 +95,15 @@ const styles = StyleSheet.create({
     width: SIGNATURE_CELL_WIDTH,
     height: SIGNATURE_CELL_HEIGHT,
     borderRadius: radius.md,
-    // TODO token: isian putih transparan di atas navy (usulan colors.onPrimarySubtle)
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: colors.onPrimaryFaint,
     borderWidth: CELL_BORDER_WIDTH,
   },
   cellSignatureActive: {
     borderColor: colors.accent,
-    // TODO token: isian kuning aksen transparan di atas navy (usulan colors.accentSubtle)
-    backgroundColor: 'rgba(255, 196, 0, 0.12)',
+    backgroundColor: colors.accentSubtle,
   },
   cellSignatureInactive: {
-    // TODO token: tepi sel tidak aktif di atas navy (usulan colors.onPrimaryBorder)
-    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderColor: colors.onPrimaryBorderSubtle,
   },
   cellDisplayNavy: {
     width: DISPLAY_CELL_WIDTH,

@@ -88,8 +88,7 @@ const styles = StyleSheet.create({
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
     borderRadius: radius.full,
-    // TODO token: isian putih transparan di atas navy (usulan colors.onPrimarySubtle)
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: colors.onPrimarySubtle,
     borderWidth: AVATAR_BORDER_WIDTH,
     borderColor: colors.accent,
     alignItems: 'center',
@@ -105,8 +104,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     borderRadius: radius.full,
     borderWidth: BORDER_WIDTH,
-    // TODO token: tepi tombol outline di atas navy (usulan colors.onPrimaryBorder)
-    borderColor: 'rgba(255, 255, 255, 0.4)',
+    borderColor: colors.onPrimaryBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },

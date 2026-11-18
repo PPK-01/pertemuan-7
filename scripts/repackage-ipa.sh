@@ -60,24 +60,46 @@ fi
 
 echo "  Target binary: $(basename "$MAIN_EXEC")"
 
-# Step: Thin binary to arm64 if lipo is available (physical iPhones only run arm64)
-if command -v lipo >/dev/null 2>&1 && lipo -info "$MAIN_EXEC" 2>&1 | grep -q "arm64"; then
-  echo "→ Thinning binary to arm64..."
-  lipo -thin arm64 "$MAIN_EXEC" -output "$MAIN_EXEC.arm64" 2>/dev/null && mv "$MAIN_EXEC.arm64" "$MAIN_EXEC" || true
-fi
+# Collect ALL Mach-O binaries: main executable + framework executables + dylibs
+echo "→ Scanning for Mach-O binaries..."
+MACHO_FILES=()
+MACHO_FILES+=("$MAIN_EXEC")
 
-# Step: Patch Mach-O platform headers (iOS-simulator -> physical iOS)
-echo "→ Patching Mach-O headers for LiveContainer..."
-python3 "$SCRIPT_DIR/patch-macho.py" "$MAIN_EXEC"
+# Find executables inside .framework directories
+while IFS= read -r fw_dir; do
+  fw_name=$(basename "$fw_dir" .framework)
+  fw_exec="$fw_dir/$fw_name"
+  if [ -f "$fw_exec" ]; then
+    MACHO_FILES+=("$fw_exec")
+  fi
+done < <(find "$APP_PATH" -name "*.framework" -type d)
 
-# Find any nested dylibs or frameworks and patch them too if present
-while IFS= read -r f; do
-  [ -f "$f" ] && python3 "$SCRIPT_DIR/patch-macho.py" "$f" 2>/dev/null || true
-done < <(find "$APP_PATH" -type f \( -name "*.dylib" -o -name "*.framework" \))
+# Find standalone .dylib files
+while IFS= read -r dylib; do
+  MACHO_FILES+=("$dylib")
+done < <(find "$APP_PATH" -type f -name "*.dylib")
+
+echo "  Found ${#MACHO_FILES[@]} Mach-O binaries to process"
+
+# Step: Thin all binaries to arm64 and patch platform headers
+for macho in "${MACHO_FILES[@]}"; do
+  macho_name=$(basename "$macho")
+  echo "  Processing: $macho_name..."
+  # Thin to arm64 (iPhone physical arch only)
+  if command -v lipo >/dev/null 2>&1 && lipo -info "$macho" 2>&1 | grep -q "arm64"; then
+    lipo -thin arm64 "$macho" -output "$macho.arm64" 2>/dev/null && mv "$macho.arm64" "$macho" || true
+  fi
+  # Patch platform header
+  python3 "$SCRIPT_DIR/patch-macho.py" "$macho"
+done
 
 # Step: Re-sign ad-hoc if codesign is available
 if command -v codesign >/dev/null 2>&1; then
   echo "→ Applying ad-hoc code signature..."
+  # Sign frameworks first, then main app
+  find "$APP_PATH/Frameworks" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | while read -r fw; do
+    codesign --force --deep --sign - "$fw" 2>/dev/null || true
+  done
   codesign --force --deep --sign - "$APP_PATH" 2>/dev/null || true
 fi
 

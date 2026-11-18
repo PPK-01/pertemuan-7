@@ -48,3 +48,8 @@ example
 
 .agents/
 skills-lock.json
+
+# Build artifacts
+build/
+*.ipa
+*.tar.gz

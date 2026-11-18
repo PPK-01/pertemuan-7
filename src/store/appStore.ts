@@ -62,6 +62,14 @@ import type {
 
 export type { SyncKey, SyncStatus };
 
+const IDLE_SYNC: Record<SyncKey, SyncStatus> = {
+  sessions: 'idle',
+  kelas: 'idle',
+  attendances: 'idle',
+  izin: 'idle',
+  users: 'idle',
+};
+
 export type AppStoreState = {
   authStatus: 'loading' | 'signedOut' | 'signedIn';
   currentUser: User | null;
@@ -141,13 +149,7 @@ export const useAppStore = create<AppStoreState>()((set, get) => ({
   authStatus: 'loading',
   currentUser: null,
   isOnline: connectionService.isConnected,
-  sync: {
-    sessions: 'idle',
-    kelas: 'idle',
-    attendances: 'idle',
-    izin: 'idle',
-    users: 'idle',
-  },
+  sync: IDLE_SYNC,
 
   // State awal: jika Firebase aktif, mulai dengan data kosong (O-4). Jika fallback in-memory, muat dummy data.
   users: isFirebaseReady ? [] : dummyUsers,
@@ -166,7 +168,12 @@ export const useAppStore = create<AppStoreState>()((set, get) => ({
       syncStartSync(user, getSyncDelegate(get, set));
     } else {
       syncStopSync(getSyncDelegate(get, set));
+      // Seluruh cache dikosongkan agar akun berikutnya di perangkat yang sama tidak melihat data
+      // akun sebelumnya (mis. daftar praktikan atau kode sesi milik asisten).
       set({
+        sync: IDLE_SYNC,
+        users: isFirebaseReady ? [] : dummyUsers,
+        kelasList: isFirebaseReady ? [] : dummyKelasPraktikum,
         sessions: isFirebaseReady ? [] : dummySessions,
         attendances: isFirebaseReady ? [] : dummyAttendances,
         izinList: isFirebaseReady ? [] : dummyIzin,

@@ -11,6 +11,7 @@ import {
 import { db, isFirebaseReady } from './firebase';
 import { connectionService } from './connection';
 import { classifyIzin } from './ai';
+import { devWarn } from './devLog';
 import { mapFirebaseError } from './errors';
 import { dummyIzin } from '@/data/dummy';
 import type { AiResult, Izin, Result, Session, User } from '@/types';
@@ -76,7 +77,7 @@ export function listenIzin(
       onData(list);
     },
     (error) => {
-      console.error('[services/izin] listenIzin error:', error);
+      devWarn('izin', error);
       if (onError) onError(error);
     },
   );
@@ -155,7 +156,9 @@ export async function submitIzin(
           updatedAt: serverTimestamp(),
         });
       } catch (err) {
-        console.error('[services/izin] Gagal update AI result ke Firestore:', err);
+        // Izin tetap berstatus pending_ai; listener izin di store/sync.ts menjalankan ulang AI
+        // (retryAi) untuk izin pending_ai milik praktikan, jadi kegagalan ini tidak tertelan.
+        devWarn('izin', err);
       }
     });
 

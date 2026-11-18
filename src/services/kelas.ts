@@ -13,6 +13,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { db, isFirebaseReady } from './firebase';
+import { devWarn } from './devLog';
 import { mapFirebaseError } from './errors';
 import { dummyKelasPraktikum } from '@/data/dummy';
 import { getInMemorySessions } from './sessions';
@@ -59,7 +60,7 @@ export function listenKelas(
       onData(list);
     },
     (error) => {
-      console.error('[services/kelas] listenKelas error:', error);
+      devWarn('kelas', error);
       if (onError) onError(error);
     },
   );

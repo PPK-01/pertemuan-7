@@ -1,4 +1,5 @@
 import { collection, doc, getDoc, onSnapshot, query, where } from 'firebase/firestore';
+import { devWarn } from './devLog';
 import { db, isFirebaseReady } from './firebase';
 import { dummyUsers } from '@/data/dummy';
 import type { User } from '@/types';
@@ -55,7 +56,6 @@ export async function getUserProfile(uid: string): Promise<GetUserProfileResult>
       },
     };
   } catch (error) {
-    console.error('[services/users] getUserProfile error:', error);
     return { state: 'error', error };
   }
 }
@@ -95,7 +95,7 @@ export function listenPraktikan(
       onData(users);
     },
     (error) => {
-      console.error('[services/users] listenPraktikan error:', error);
+      devWarn('users', error);
       if (onError) onError(error);
     },
   );

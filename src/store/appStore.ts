@@ -93,7 +93,11 @@ export type AppStoreState = {
   initAuth: () => () => void;
   register: (input: RegisterInput) => Promise<Result<User>>;
   login: (email: string, password: string) => Promise<Result<User>>;
-  logout: () => Promise<void>;
+  /**
+   * Keluar dari akun. Bila signOut gagal, Result gagal dikembalikan dan pengguna tetap masuk
+   * (cache tidak dikosongkan), karena sesi Firebase Auth masih aktif.
+   */
+  logout: () => Promise<Result>;
 
   // Sinkronisasi (C-4, NFR-02)
   retrySync: (key?: SyncKey) => void;
@@ -226,8 +230,13 @@ export const useAppStore = create<AppStoreState>()((set, get) => ({
   },
 
   logout: async () => {
-    await authLogout();
-    get().setCurrentUser(null);
+    const res = await authLogout();
+    // Bila signOut gagal, sesi Firebase Auth masih aktif dan akun ini akan masuk lagi saat
+    // aplikasi dibuka ulang; mengosongkan cache hanya membuat pengguna mengira sudah keluar.
+    if (res.ok) {
+      get().setCurrentUser(null);
+    }
+    return res;
   },
 
   newSessionId: () => svcNewSessionId(),

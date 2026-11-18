@@ -10,6 +10,7 @@ import {
 } from 'firebase/firestore';
 import { db, isFirebaseReady } from './firebase';
 import { connectionService } from './connection';
+import { devWarn } from './devLog';
 import { dummyAttendances, dummySessionCodes } from '@/data/dummy';
 import type { Attendance, AttendResult, Session, User } from '@/types';
 
@@ -72,7 +73,7 @@ export function listenAttendances(
       onData(list);
     },
     (error) => {
-      console.error('[services/attendance] listenAttendances error:', error);
+      devWarn('attendance', error);
       if (onError) onError(error);
     },
   );

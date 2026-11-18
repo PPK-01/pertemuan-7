@@ -10,6 +10,7 @@ import {
 } from 'firebase/firestore';
 import type { DocumentData } from 'firebase/firestore';
 import { db, isFirebaseReady } from './firebase';
+import { devWarn } from './devLog';
 import { mapFirebaseError } from './errors';
 import { dummySessionCodes, dummySessions } from '@/data/dummy';
 import type { CreateSessionInput, Result, Session, User } from '@/types';
@@ -93,7 +94,7 @@ export function listenSessions(
       onData(list);
     },
     (error) => {
-      console.error('[services/sessions] listenSessions error:', error);
+      devWarn('sessions', error);
       if (onError) onError(error);
     },
   );

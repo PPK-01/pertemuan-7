@@ -12,10 +12,8 @@ import { SyncErrorState } from '@/components/ui/SyncErrorState';
 import { DeleteKelasSheet } from '@/features/asisten/DeleteKelasSheet';
 import { setFlash } from '@/features/asisten/flash';
 import { KELAS_FLASH_SCOPE, kelasErrorMessage } from '@/features/asisten/kelasErrorMessage';
-import type { KelasAction } from '@/features/asisten/kelasErrorMessage';
 import { KelasForm } from '@/features/asisten/KelasForm';
 import type { KelasFormFeedback } from '@/features/asisten/KelasForm';
-import { validateKelasForm } from '@/features/asisten/kelasValidation';
 import type { KelasFormInput } from '@/features/asisten/kelasValidation';
 import { useSyncRetry } from '@/features/asisten/useSyncRetry';
 import { OFFLINE_ACTION_HINT } from '@/features/asisten/writeErrorMessage';
@@ -23,7 +21,7 @@ import { useAppStore, useIsOnline, useKelasList, useSyncState } from '@/store/ap
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
-import type { ErrorCode, KelasPraktikum } from '@/types';
+import type { KelasPraktikum } from '@/types';
 
 const CREATE_SUCCESS_MESSAGE = 'Kelas praktikum ditambahkan.';
 const UPDATE_SUCCESS_MESSAGE = 'Perubahan kelas disimpan.';
@@ -33,22 +31,6 @@ const KELAS_SYNC_KEYS = ['kelas'] as const;
 
 const goToList = () => router.replace('/asisten/kelas');
 const goBack = () => (router.canGoBack() ? router.back() : goToList());
-
-// Result gagal dibaca bersama cache terbaru (bukan closure render): apakah pasangan lama masih
-// dipakai sesi, dan apakah pasangan baru sudah ada, untuk membedakan arti CONFLICT.
-function failureMessage(
-  code: ErrorCode,
-  action: KelasAction,
-  original: Pick<KelasPraktikum, 'id' | 'praktikum' | 'kelas'> | null,
-  input: KelasFormInput | null,
-): string {
-  const { sessions, kelasList } = useAppStore.getState();
-  const inUse =
-    original !== null &&
-    sessions.some((s) => s.praktikum === original.praktikum && s.kelas === original.kelas);
-  const duplicate = input !== null && !validateKelasForm(input, kelasList, original?.id).ok;
-  return kelasErrorMessage(code, action, { inUse, duplicate });
-}
 
 export default function AsistenKelasFormScreen() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
@@ -94,7 +76,7 @@ export default function AsistenKelasFormScreen() {
     // Isi form tetap di KelasForm; asisten cukup menekan tombol lagi.
     submittingRef.current = false;
     setSubmitting(false);
-    showError(failureMessage(res.code, 'create', null, input));
+    showError(kelasErrorMessage(res.code, 'create'));
   }
 
   async function handleUpdate(original: KelasPraktikum, input: KelasFormInput) {
@@ -111,7 +93,7 @@ export default function AsistenKelasFormScreen() {
 
     submittingRef.current = false;
     setSubmitting(false);
-    showError(failureMessage(res.code, 'update', original, input));
+    showError(kelasErrorMessage(res.code, 'update'));
   }
 
   async function handleDelete(original: KelasPraktikum) {
@@ -133,7 +115,7 @@ export default function AsistenKelasFormScreen() {
     setSheetOpen(false);
     setDeleteError((prev) => ({
       id: (prev?.id ?? 0) + 1,
-      message: failureMessage(res.code, 'delete', original, null),
+      message: kelasErrorMessage(res.code, 'delete'),
     }));
   }
 

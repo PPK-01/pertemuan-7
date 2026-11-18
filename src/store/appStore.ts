@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import {
@@ -23,6 +23,7 @@ import {
   createSession as svcCreateSession,
   deleteSession as svcDeleteSession,
   getSessionCode as svcGetSessionCode,
+  newSessionId as svcNewSessionId,
   setStatus as svcSetStatus,
   updateSession as svcUpdateSession,
 } from '@/services/sessions';
@@ -36,7 +37,6 @@ import { classifyIzin } from '@/services/ai';
 import { connectionService } from '@/services/connection';
 import { isFirebaseReady } from '@/services/firebase';
 import { withWriteGuard } from '@/services/guard';
-import { createId } from '@/utils/id';
 import {
   retrySync as syncRetrySync,
   startSync as syncStartSync,
@@ -62,6 +62,14 @@ import type {
 
 export type { SyncKey, SyncStatus };
 
+const IDLE_SYNC: Record<SyncKey, SyncStatus> = {
+  sessions: 'idle',
+  kelas: 'idle',
+  attendances: 'idle',
+  izin: 'idle',
+  users: 'idle',
+};
+
 export type AppStoreState = {
   authStatus: 'loading' | 'signedOut' | 'signedIn';
   currentUser: User | null;
@@ -85,13 +93,27 @@ export type AppStoreState = {
   initAuth: () => () => void;
   register: (input: RegisterInput) => Promise<Result<User>>;
   login: (email: string, password: string) => Promise<Result<User>>;
-  logout: () => Promise<void>;
+  /**
+   * Keluar dari akun. Bila signOut gagal, Result gagal dikembalikan dan pengguna tetap masuk
+   * (cache tidak dikosongkan), karena sesi Firebase Auth masih aktif.
+   */
+  logout: () => Promise<Result>;
 
   // Sinkronisasi (C-4, NFR-02)
   retrySync: (key?: SyncKey) => void;
 
   // Aksi Sesi & Kelas (FR-04 s.d. FR-06, FR-18 s.d. FR-20, SRS v2.2 §3.4)
-  createSession: (input: CreateSessionInput) => Promise<Result<Session>>;
+  /** Id sesi baru tanpa menulis; simpan lalu kirim ke createSession agar kirim ulang aman. */
+  newSessionId: () => string;
+  /**
+   * Membuat sesi. Dengan `options.id`, sesi yang sudah ada dengan id itu dikembalikan sebagai
+   * sukses tanpa menulis ulang, sehingga kirim ulang setelah gagal atau TIMEOUT tidak membuat
+   * sesi ganda. Tanpa `options.id`, id baru dibuat setiap pemanggilan.
+   */
+  createSession: (
+    input: CreateSessionInput,
+    options?: { id?: string },
+  ) => Promise<Result<Session>>;
   updateSession: (id: string, patch: Partial<Session>) => Promise<Result>;
   deleteSession: (id: string) => Promise<Result>;
   openSession: (id: string) => Promise<Result>;
@@ -131,13 +153,7 @@ export const useAppStore = create<AppStoreState>()((set, get) => ({
   authStatus: 'loading',
   currentUser: null,
   isOnline: connectionService.isConnected,
-  sync: {
-    sessions: 'idle',
-    kelas: 'idle',
-    attendances: 'idle',
-    izin: 'idle',
-    users: 'idle',
-  },
+  sync: IDLE_SYNC,
 
   // State awal: jika Firebase aktif, mulai dengan data kosong (O-4). Jika fallback in-memory, muat dummy data.
   users: isFirebaseReady ? [] : dummyUsers,
@@ -156,7 +172,12 @@ export const useAppStore = create<AppStoreState>()((set, get) => ({
       syncStartSync(user, getSyncDelegate(get, set));
     } else {
       syncStopSync(getSyncDelegate(get, set));
+      // Seluruh cache dikosongkan agar akun berikutnya di perangkat yang sama tidak melihat data
+      // akun sebelumnya (mis. daftar praktikan atau kode sesi milik asisten).
       set({
+        sync: IDLE_SYNC,
+        users: isFirebaseReady ? [] : dummyUsers,
+        kelasList: isFirebaseReady ? [] : dummyKelasPraktikum,
         sessions: isFirebaseReady ? [] : dummySessions,
         attendances: isFirebaseReady ? [] : dummyAttendances,
         izinList: isFirebaseReady ? [] : dummyIzin,
@@ -209,17 +230,31 @@ export const useAppStore = create<AppStoreState>()((set, get) => ({
   },
 
   logout: async () => {
-    await authLogout();
-    get().setCurrentUser(null);
+    const res = await authLogout();
+    // Bila signOut gagal, sesi Firebase Auth masih aktif dan akun ini akan masuk lagi saat
+    // aplikasi dibuka ulang; mengosongkan cache hanya membuat pengguna mengira sudah keluar.
+    if (res.ok) {
+      get().setCurrentUser(null);
+    }
+    return res;
   },
 
-  createSession: (input) => {
-    // C-2: Sesi dibuat dengan id final Firestore yang konsisten sejak awal
-    const finalSessionId = createId('ses');
-    return withWriteGuard(async () => {
-      const res = await svcCreateSession({ ...input, id: finalSessionId });
-      return res;
-    });
+  newSessionId: () => svcNewSessionId(),
+
+  createSession: async (input, options) => {
+    // C-2: Sesi dibuat dengan id final Firestore yang konsisten sejak awal. Tanpa options.id,
+    // service membuat id baru seperti sebelumnya.
+    const id = options?.id;
+    if (id) {
+      // Kirim ulang dengan id yang sama dan sesinya sudah tersinkron: tidak perlu menulis lagi.
+      const cached = get().sessions.find((s) => s.id === id);
+      if (cached) {
+        return { ok: true, data: cached };
+      }
+    }
+    // Dengan id, service membaca dokumen lebih dulu untuk tulis yang sudah tersimpan tetapi
+    // belum sampai ke cache.
+    return withWriteGuard(() => svcCreateSession({ ...input, id }));
   },
 
   updateSession: async (id, patch) => {
@@ -457,32 +492,69 @@ export function useSessionById(id: string): Session | null {
   return useAppStore((state) => state.sessions.find((s) => s.id === id) ?? null);
 }
 
+export type SessionCodeStatus = 'loading' | 'ready' | 'error';
+
+export type SessionCodeState = {
+  code: string | null;
+  status: SessionCodeStatus;
+  /** Membaca ulang kode setelah status 'error'. */
+  retry: () => void;
+};
+
 /**
  * Hook khusus asisten untuk membaca kode sesi 4 digit secara reaktif (C-3, SRS v2.2 §3.4).
+ * Kode yang berhasil dibaca disimpan di store; gagal baca menghasilkan status 'error' yang bisa
+ * dicoba lagi lewat `retry`. Objek hasil stabil selama code dan status tidak berubah.
  */
-export function useSessionCode(sessionId?: string): string | null {
+export function useSessionCode(sessionId?: string): SessionCodeState {
   const codeInStore = useAppStore((state) =>
     sessionId ? state.sessionCodes[sessionId] : undefined,
   );
   const setSessionCode = useAppStore((state) => state.setSessionCode);
-  const currentUser = useCurrentUser();
+  const role = useAppStore((state) => state.currentUser?.role);
+  // sessionId terakhir yang gagal dibaca; berganti sesi otomatis kembali ke 'loading'.
+  const [failedFor, setFailedFor] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  // Pindah sesi membuang status gagal lama (penyesuaian state saat render, pola React resmi),
+  // agar kembali ke sesi yang tadinya gagal tampil 'loading' selama dibaca ulang.
+  const [prevSessionId, setPrevSessionId] = useState(sessionId);
+  if (prevSessionId !== sessionId) {
+    setPrevSessionId(sessionId);
+    setFailedFor(null);
+  }
 
   useEffect(() => {
-    if (!sessionId || currentUser?.role !== 'asisten' || codeInStore !== undefined) {
+    if (!sessionId || role !== 'asisten' || codeInStore !== undefined) {
       return;
     }
     let isMounted = true;
-    svcGetSessionCode(sessionId).then((code) => {
-      if (isMounted && code !== null) {
-        setSessionCode(sessionId, code);
+    svcGetSessionCode(sessionId).then((res) => {
+      if (!isMounted) return;
+      if (res.ok) {
+        setSessionCode(sessionId, res.data);
+      } else {
+        setFailedFor(sessionId);
       }
     });
     return () => {
       isMounted = false;
     };
-  }, [sessionId, currentUser?.role, codeInStore, setSessionCode]);
+  }, [sessionId, role, codeInStore, setSessionCode, attempt]);
 
-  return codeInStore ?? null;
+  const retry = useCallback(() => {
+    setFailedFor(null);
+    setAttempt((n) => n + 1);
+  }, []);
+
+  const status: SessionCodeStatus =
+    codeInStore !== undefined
+      ? 'ready'
+      : sessionId !== undefined && failedFor === sessionId
+        ? 'error'
+        : 'loading';
+  const code = codeInStore ?? null;
+
+  return useMemo(() => ({ code, status, retry }), [code, status, retry]);
 }
 
 export function useAttendanceBySession(sessionId: string): Attendance[] {
@@ -558,5 +630,6 @@ export function useIzinForAsisten(filter?: IzinStatus | 'all' | 'pending'): Izin
 }
 
 export async function fetchSessionCode(sessionId: string): Promise<string | null> {
-  return svcGetSessionCode(sessionId);
+  const res = await svcGetSessionCode(sessionId);
+  return res.ok ? res.data : null;
 }

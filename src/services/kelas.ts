@@ -13,6 +13,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { db, isFirebaseReady } from './firebase';
+import { devWarn } from './devLog';
 import { mapFirebaseError } from './errors';
 import { dummyKelasPraktikum } from '@/data/dummy';
 import { getInMemorySessions } from './sessions';
@@ -59,7 +60,7 @@ export function listenKelas(
       onData(list);
     },
     (error) => {
-      console.error('[services/kelas] listenKelas error:', error);
+      devWarn('kelas', error);
       if (onError) onError(error);
     },
   );
@@ -84,7 +85,7 @@ export async function addKelas(
       (item) => item.praktikum.toLowerCase() === p.toLowerCase() && item.kelas.toUpperCase() === k,
     );
     if (exists) {
-      return { ok: false, code: 'CONFLICT', message: 'Kelas praktikum sudah ada' };
+      return { ok: false, code: 'DUPLICATE', message: 'Kelas praktikum sudah ada' };
     }
 
     const newKelas: KelasPraktikum = {
@@ -109,7 +110,7 @@ export async function addKelas(
     );
     const existing = await getDocs(q);
     if (!existing.empty) {
-      return { ok: false, code: 'CONFLICT', message: 'Kelas praktikum sudah ada' };
+      return { ok: false, code: 'DUPLICATE', message: 'Kelas praktikum sudah ada' };
     }
 
     const newId = createId('kp');
@@ -157,7 +158,7 @@ export async function updateKelas(
       if (isUsed) {
         return {
           ok: false,
-          code: 'CONFLICT',
+          code: 'IN_USE',
           message: 'Kelas tidak dapat diubah karena masih digunakan oleh sesi praktikum',
         };
       }
@@ -168,7 +169,7 @@ export async function updateKelas(
       (item) => item.id !== id && item.praktikum.toLowerCase() === p.toLowerCase() && item.kelas.toUpperCase() === k,
     );
     if (duplicate) {
-      return { ok: false, code: 'CONFLICT', message: 'Kelas praktikum sudah ada' };
+      return { ok: false, code: 'DUPLICATE', message: 'Kelas praktikum sudah ada' };
     }
 
     inMemoryKelas = inMemoryKelas.map((item) =>
@@ -199,7 +200,7 @@ export async function updateKelas(
       if (!sessionSnap.empty) {
         return {
           ok: false,
-          code: 'CONFLICT',
+          code: 'IN_USE',
           message: 'Kelas tidak dapat diubah karena masih digunakan oleh sesi praktikum',
         };
       }
@@ -214,7 +215,7 @@ export async function updateKelas(
     );
     const dupSnap = await getDocs(dupQuery);
     if (!dupSnap.empty && dupSnap.docs[0].id !== id) {
-      return { ok: false, code: 'CONFLICT', message: 'Kelas praktikum sudah ada' };
+      return { ok: false, code: 'DUPLICATE', message: 'Kelas praktikum sudah ada' };
     }
 
     await updateDoc(docRef, {
@@ -243,7 +244,7 @@ export async function deleteKelas(id: string): Promise<Result> {
     if (isUsed) {
       return {
         ok: false,
-        code: 'CONFLICT',
+        code: 'IN_USE',
         message: 'Kelas tidak dapat dihapus karena masih digunakan oleh sesi praktikum',
       };
     }
@@ -273,7 +274,7 @@ export async function deleteKelas(id: string): Promise<Result> {
     if (!sessionSnap.empty) {
       return {
         ok: false,
-        code: 'CONFLICT',
+        code: 'IN_USE',
         message: 'Kelas tidak dapat dihapus karena masih digunakan oleh sesi praktikum',
       };
     }

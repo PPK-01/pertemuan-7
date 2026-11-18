@@ -119,15 +119,14 @@ export default function AsistenHomeScreen() {
   const confirmKeluar = async () => {
     setKeluarError(null);
     setLoggingOut(true);
-    try {
-      await logout();
+    const res = await logout();
+    setLoggingOut(false);
+    if (res.ok) {
       setKeluarVisible(false);
-    } catch {
-      // Sheet tetap terbuka agar pengguna tahu masih masuk dan bisa mencoba lagi.
-      setKeluarError('Gagal keluar. Coba lagi.');
-    } finally {
-      setLoggingOut(false);
+      return;
     }
+    // Sheet tetap terbuka agar pengguna tahu masih masuk dan bisa mencoba lagi.
+    setKeluarError('Gagal keluar. Coba lagi.');
   };
 
   const closeKeluar = () => {

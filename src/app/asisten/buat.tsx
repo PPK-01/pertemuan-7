@@ -53,11 +53,16 @@ export default function AsistenBuatSesiScreen() {
   const sessionsSync = useSyncState('sessions');
   const sessionsRetry = useSyncRetry(SESSIONS_SYNC_KEYS);
   const createSession = useAppStore((state) => state.createSession);
+  const newSessionId = useAppStore((state) => state.newSessionId);
   const updateSession = useAppStore((state) => state.updateSession);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<SessionFormFeedback | null>(null);
   // State baru berlaku di render berikutnya; ref menahan tekanan beruntun sebelum itu.
   const submittingRef = useRef(false);
+  // Id sesi dibuat sekali pada tekanan "Buat sesi" pertama dan dipakai lagi saat kirim ulang setelah
+  // gagal atau TIMEOUT, sehingga tulis yang ternyata sudah tersimpan tidak membuat sesi ganda.
+  // Direset setelah sukses; meninggalkan form membuang ref ini bersama layarnya.
+  const pendingCreateIdRef = useRef<string | null>(null);
   // Status saat form ubah pertama tampil; bila berubah dari luar, form dimuat ulang dan diberi tahu.
   const [initialStatus] = useState(session?.status ?? null);
 
@@ -74,8 +79,15 @@ export default function AsistenBuatSesiScreen() {
     submittingRef.current = true;
     setSubmitting(true);
 
-    const res = await createSession({ ...input, createdBy: currentUser.id });
+    if (pendingCreateIdRef.current === null) {
+      pendingCreateIdRef.current = newSessionId();
+    }
+    const res = await createSession(
+      { ...input, createdBy: currentUser.id },
+      { id: pendingCreateIdRef.current },
+    );
     if (res.ok) {
+      pendingCreateIdRef.current = null;
       // replace, bukan push: back dari detail kembali ke daftar, bukan ke form.
       // Ref tetap terkunci karena layar ini segera diganti.
       router.replace({ pathname: '/asisten/sesi/[id]', params: { id: res.data.id } });

@@ -155,18 +155,20 @@ export async function login(email: string, password: string): Promise<Result<Use
   }
 }
 
-export async function logout(): Promise<void> {
+export async function logout(): Promise<Result> {
   if (!isFirebaseReady || !auth) {
     fallbackCurrentUser = null;
     await safeStorage.removeItem(FALLBACK_AUTH_KEY);
     notifyFallbackAuth(null);
-    return;
+    return { ok: true, data: undefined };
   }
 
   try {
     await signOut(auth);
+    return { ok: true, data: undefined };
   } catch (error) {
-    console.error('[services/auth] logout error:', error);
+    const mapped = mapFirebaseError(error);
+    return { ok: false, code: mapped.code, message: mapped.message };
   }
 }
 

@@ -14,11 +14,9 @@ export const STATUS_CHANGED_MESSAGE = 'Status sesi sudah berubah. Periksa status
 export function sessionErrorMessage(code: ErrorCode, action: SessionAction): string {
   switch (code) {
     case 'TIMEOUT':
-      // Batch yang melewati batas waktu masih bisa tersimpan kemudian, dan setiap kirim ulang
-      // membuat id sesi baru; asisten diminta memeriksa daftar agar tidak ada sesi ganda.
-      return action === 'create'
-        ? 'Sesi belum dapat dipastikan tersimpan. Cek daftar sesi sebelum mencoba lagi.'
-        : writeErrorMessage(code);
+      // Buat sesi memakai id yang sama saat dikirim ulang, jadi mencoba lagi tidak membuat sesi
+      // ganda; teks umum SRS §4.3 (mengajak coba lagi) berlaku untuk semua aksi sesi.
+      return writeErrorMessage(code);
     case 'CONFLICT':
       // Untuk aksi pada sesi yang sudah ada, CONFLICT berasal dari pra-cek transisi status di store.
       return action === 'create' ? 'Terjadi kesalahan. Coba lagi.' : STATUS_CHANGED_MESSAGE;

@@ -10,6 +10,7 @@ import {
 } from 'firebase/firestore';
 import { db, isFirebaseReady } from './firebase';
 import { connectionService } from './connection';
+import { devWarn } from './devLog';
 import { dummyAttendances, dummySessionCodes } from '@/data/dummy';
 import type { Attendance, AttendResult, Session, User } from '@/types';
 
@@ -72,7 +73,7 @@ export function listenAttendances(
       onData(list);
     },
     (error) => {
-      console.error('[services/attendance] listenAttendances error:', error);
+      devWarn('attendance', error);
       if (onError) onError(error);
     },
   );
@@ -132,9 +133,10 @@ export async function submitAttendance(
     }, 10000);
   });
 
+  const attRef = doc(db, 'attendances', attendanceId);
+
   const executionPromise = (async (): Promise<AttendResult> => {
     try {
-      const attRef = doc(db, 'attendances', attendanceId);
       await setDoc(attRef, {
         sessionId,
         userId: user.id,
@@ -155,6 +157,19 @@ export async function submitAttendance(
       const errObj = err as { code?: string; message?: string };
 
       if (errObj.code === 'permission-denied') {
+        // setDoc ke dokumen presensi yang sudah ada dihitung sebagai update, dan rules menolak
+        // update dengan permission-denied (bukan already-exists). Jadi presensi kedua dikenali
+        // dengan membaca dokumen {sessionId}_{uid}. Bila dokumennya tidak ada, rules juga menolak
+        // baca (resource kosong), sehingga error baca berarti belum presensi.
+        try {
+          const existingDoc = await getDoc(attRef);
+          if (existingDoc.exists()) {
+            return { ok: false, reason: 'ALREADY_ATTENDED' };
+          }
+        } catch {
+          // Lanjut ke pemetaan berikutnya
+        }
+
         // Cek apakah sesi baru saja ditutup
         try {
           const freshSessionDoc = await getDoc(doc(db, 'sessions', sessionId));
@@ -176,10 +191,6 @@ export async function submitAttendance(
         }
 
         return { ok: false, reason: 'INVALID_CODE' };
-      }
-
-      if (errObj.code === 'already-exists') {
-        return { ok: false, reason: 'ALREADY_ATTENDED' };
       }
 
       return { ok: false, reason: 'UNKNOWN' };

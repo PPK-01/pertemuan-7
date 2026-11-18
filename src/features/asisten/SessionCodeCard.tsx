@@ -1,18 +1,14 @@
-import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { LoadingState } from '@/components/ui/LoadingState';
-import { useIsOnline, useSessionCode } from '@/store/appStore';
+import { useSessionCode } from '@/store/appStore';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 import type { Kelas } from '@/types';
 
-// useSessionCode hanya mengembalikan string | null, jadi gagal baca private/code tidak bisa
-// dibedakan dari masih memuat. Setelah batas ini kode dianggap tidak tersedia; nilainya sama
-// dengan batas waktu tulis FR-29.
-const CODE_WAIT_MS = 10000;
 // Jarak antar digit kode; tidak ada token letterSpacing (gaya Sprint 1).
 const CODE_LETTER_SPACING = 4;
 
@@ -26,17 +22,7 @@ export type SessionCodeCardProps = {
  * yang tersimpan di store tidak tampil lagi setelah sesi ditutup.
  */
 export function SessionCodeCard({ sessionId, kelas }: SessionCodeCardProps) {
-  const code = useSessionCode(sessionId);
-  const isOnline = useIsOnline();
-  const [waitedTooLong, setWaitedTooLong] = useState(false);
-
-  useEffect(() => {
-    if (code !== null) return;
-    const timer = setTimeout(() => setWaitedTooLong(true), CODE_WAIT_MS);
-    return () => clearTimeout(timer);
-  }, [code]);
-
-  const unavailable = code === null && (waitedTooLong || !isOnline);
+  const { code, status, retry } = useSessionCode(sessionId);
 
   return (
     <Card>
@@ -50,10 +36,11 @@ export function SessionCodeCard({ sessionId, kelas }: SessionCodeCardProps) {
             </Text>
             <Text style={styles.codeHint}>{`Bagikan kode ini ke praktikan kelas ${kelas}.`}</Text>
           </>
-        ) : unavailable ? (
-          <Text style={styles.codeHint}>
-            Kode sesi belum bisa dimuat. Periksa koneksi lalu buka ulang layar ini.
-          </Text>
+        ) : status === 'error' ? (
+          <>
+            <Text style={styles.codeHint}>Kode sesi belum bisa dimuat.</Text>
+            <Button label="Coba lagi" variant="secondary" onPress={retry} />
+          </>
         ) : (
           <LoadingState label="Memuat kode sesi…" />
         )}

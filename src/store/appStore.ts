@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import {
@@ -476,32 +476,69 @@ export function useSessionById(id: string): Session | null {
   return useAppStore((state) => state.sessions.find((s) => s.id === id) ?? null);
 }
 
+export type SessionCodeStatus = 'loading' | 'ready' | 'error';
+
+export type SessionCodeState = {
+  code: string | null;
+  status: SessionCodeStatus;
+  /** Membaca ulang kode setelah status 'error'. */
+  retry: () => void;
+};
+
 /**
  * Hook khusus asisten untuk membaca kode sesi 4 digit secara reaktif (C-3, SRS v2.2 §3.4).
+ * Kode yang berhasil dibaca disimpan di store; gagal baca menghasilkan status 'error' yang bisa
+ * dicoba lagi lewat `retry`. Objek hasil stabil selama code dan status tidak berubah.
  */
-export function useSessionCode(sessionId?: string): string | null {
+export function useSessionCode(sessionId?: string): SessionCodeState {
   const codeInStore = useAppStore((state) =>
     sessionId ? state.sessionCodes[sessionId] : undefined,
   );
   const setSessionCode = useAppStore((state) => state.setSessionCode);
-  const currentUser = useCurrentUser();
+  const role = useAppStore((state) => state.currentUser?.role);
+  // sessionId terakhir yang gagal dibaca; berganti sesi otomatis kembali ke 'loading'.
+  const [failedFor, setFailedFor] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  // Pindah sesi membuang status gagal lama (penyesuaian state saat render, pola React resmi),
+  // agar kembali ke sesi yang tadinya gagal tampil 'loading' selama dibaca ulang.
+  const [prevSessionId, setPrevSessionId] = useState(sessionId);
+  if (prevSessionId !== sessionId) {
+    setPrevSessionId(sessionId);
+    setFailedFor(null);
+  }
 
   useEffect(() => {
-    if (!sessionId || currentUser?.role !== 'asisten' || codeInStore !== undefined) {
+    if (!sessionId || role !== 'asisten' || codeInStore !== undefined) {
       return;
     }
     let isMounted = true;
-    svcGetSessionCode(sessionId).then((code) => {
-      if (isMounted && code !== null) {
-        setSessionCode(sessionId, code);
+    svcGetSessionCode(sessionId).then((res) => {
+      if (!isMounted) return;
+      if (res.ok) {
+        setSessionCode(sessionId, res.data);
+      } else {
+        setFailedFor(sessionId);
       }
     });
     return () => {
       isMounted = false;
     };
-  }, [sessionId, currentUser?.role, codeInStore, setSessionCode]);
+  }, [sessionId, role, codeInStore, setSessionCode, attempt]);
 
-  return codeInStore ?? null;
+  const retry = useCallback(() => {
+    setFailedFor(null);
+    setAttempt((n) => n + 1);
+  }, []);
+
+  const status: SessionCodeStatus =
+    codeInStore !== undefined
+      ? 'ready'
+      : sessionId !== undefined && failedFor === sessionId
+        ? 'error'
+        : 'loading';
+  const code = codeInStore ?? null;
+
+  return useMemo(() => ({ code, status, retry }), [code, status, retry]);
 }
 
 export function useAttendanceBySession(sessionId: string): Attendance[] {
@@ -577,5 +614,6 @@ export function useIzinForAsisten(filter?: IzinStatus | 'all' | 'pending'): Izin
 }
 
 export async function fetchSessionCode(sessionId: string): Promise<string | null> {
-  return svcGetSessionCode(sessionId);
+  const res = await svcGetSessionCode(sessionId);
+  return res.ok ? res.data : null;
 }

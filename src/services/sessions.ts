@@ -288,17 +288,25 @@ export async function deleteSession(id: string): Promise<Result> {
   }
 }
 
-export async function getSessionCode(sessionId: string): Promise<string | null> {
+const CODE_NOT_FOUND: Result<string> = {
+  ok: false,
+  code: 'NOT_FOUND',
+  message: 'Kode sesi tidak ditemukan',
+};
+
+/** Kode sesi 4 digit (khusus asisten). Gagal baca dikembalikan sebagai Result, bukan null. */
+export async function getSessionCode(sessionId: string): Promise<Result<string>> {
   if (!isFirebaseReady || !db) {
-    return inMemoryCodes[sessionId] ?? null;
+    const code = inMemoryCodes[sessionId];
+    return code !== undefined ? { ok: true, data: code } : CODE_NOT_FOUND;
   }
 
   try {
     const codeDoc = await getDoc(doc(db, 'sessions', sessionId, 'private', 'code'));
-    if (!codeDoc.exists()) return null;
-    return codeDoc.data()?.code ?? null;
+    const code: unknown = codeDoc.exists() ? codeDoc.data()?.code : undefined;
+    return typeof code === 'string' ? { ok: true, data: code } : CODE_NOT_FOUND;
   } catch (error) {
-    console.error('[services/sessions] getSessionCode error:', error);
-    return null;
+    const mapped = mapFirebaseError(error);
+    return { ok: false, code: mapped.code, message: mapped.message };
   }
 }
